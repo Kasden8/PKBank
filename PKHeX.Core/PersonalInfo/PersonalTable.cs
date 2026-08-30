@@ -31,6 +31,11 @@ public static class PersonalTable
     public static readonly PersonalTable8BDSP BDSP = new(GetTable("bdsp"));
 
     /// <summary>
+    /// Personal Table used in <see cref="EntityContext.Gen8bLumi"/>.
+    /// </summary>
+    public static readonly PersonalTable8BDSP BDSPLUMI = new(GetTable("bdsplumi"), Legal.MaxSpeciesID_9);
+
+    /// <summary>
     /// Personal Table used in <see cref="EntityContext.Gen8"/>.
     /// </summary>
     public static readonly PersonalTable8SWSH SWSH = new(GetTable("swsh"));

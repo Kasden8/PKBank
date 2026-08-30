@@ -3,7 +3,7 @@ using System;
 namespace PKHeX.Core;
 
 /// <summary> Generation 8 <see cref="PKM"/> format. </summary>
-public sealed class PB8 : G8PKM
+public class PB8 : G8PKM
 {
     public override ReadOnlySpan<ushort> ExtraBytes =>
     [

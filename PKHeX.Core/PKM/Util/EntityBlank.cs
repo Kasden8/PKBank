@@ -50,6 +50,7 @@ public static class EntityBlank
         EntityContext.Gen1 => new PK1(language == LanguageID.Japanese),
         EntityContext.Gen7b => new PB7(),
         EntityContext.Gen8b => new PB8(),
+        EntityContext.Gen8bLumi => new PB8LUMI(),
         EntityContext.Gen8a => new PA8(),
         EntityContext.Gen9a => new PA9(),
         _ => GetBlank(context.Generation),

@@ -180,6 +180,7 @@ public static class SaveUtil
         if (IsG7USUM(data)) return USUM;
         if (IsG7LGPE(data)) return LGPE;
         if (IsG8SWSH(data)) return SWSH;
+        if (IsG8BDSPLumi(data)) return BDSPLumi;
         if (IsG8BDSP(data)) return BDSP;
         if (IsG8LA(data)) return LA;
         if (IsG9SV(data)) return SV;
@@ -439,6 +440,9 @@ public static class SaveUtil
         _ => false
     };
 
+    private static bool IsG8BDSPLumi(ReadOnlySpan<byte> data) => data.Length is SIZE_G8BDSP_1 or SIZE_G8BDSP_3
+        && (ReadUInt32LittleEndian(data) & 0xFFFF0000) == 0xFFFF0000;
+
     private static bool IsG8LA(ReadOnlySpan<byte> data) => data.Length is SIZE_G8LA or SIZE_G8LA_1 && SwishCrypto.GetIsHashValid(data);
     private static bool IsG8SWSH(ReadOnlySpan<byte> data) => IsSizeGen8SWSH(data.Length) && SwishCrypto.GetIsHashValid(data);
     private static bool IsG9SV(ReadOnlySpan<byte> data) => IsSizeGen9SV(data.Length) && SwishCrypto.GetIsHashValid(data);
@@ -657,6 +661,7 @@ public static class SaveUtil
 
         SWSH => new SAV8SWSH(data),
         BDSP => new SAV8BS(data),
+        BDSPLumi => new SAV8BSLuminescent(data),
         LA => new SAV8LA(data),
 
         SV => new SAV9SV(data),
