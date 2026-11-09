@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore & build
+        run: dotnet restore PKBank.slnx; dotnet build PKBank.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test PKBank.slnx --configuration Release --no-build
+
+      - name: Publish portable (win-x64, self-contained, single-file)
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          dotnet publish src/PKBank.App/PKBank.App.csproj `
+            --configuration Release `
+            --output artifacts/publish/win-x64 `
+            /property:PublishForWindows=true
+          Remove-Item artifacts/publish/win-x64/*.pdb -ErrorAction SilentlyContinue
+          $zip = "artifacts/PKBank-$version-win-x64.zip"
+          Compress-Archive artifacts/publish/win-x64/* $zip
+          Get-ChildItem artifacts
+
+      - name: Create release and upload portable
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/PKBank-*-win-x64.zip
+          generate_release_notes: true

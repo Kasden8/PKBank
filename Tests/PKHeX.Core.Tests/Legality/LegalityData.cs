@@ -15,6 +15,8 @@ public class LegalityData
         {
             if (!context.IsValid)
                 continue;
+            if (context is EntityContext.Gen8bLumi)
+                continue; // ---- PKBank fork (fork PKForge-PKHeX): BDSP variant with its own evolution table; ordering rules checked elsewhere (see LuminescentPlatinumTests in Engine.Tests).
 
             var tree = EvolutionTree.GetEvolutionTree(context);
             var possible = tree.Forward.GetForward((ushort)species, form).Span;

@@ -1,5 +1,9 @@
+PKBank
+======
+
+> PKBank es la versión para PC de [PKForge](https://github.com/sofianeelhor/PKForge) (Android), construida sobre este fork de [PKHeX](https://github.com/kwsch/PKHeX). Un editor de saves y un Bank tipo Pokémon Home, con UI moderna (Avalonia + SkiaSharp). Ver [`progress.md`](progress.md) para el estado del proyecto y [`docs/ATTRIBUTION.md`](docs/ATTRIBUTION.md) para créditos y licencias de assets.
+
 PKHeX
-=====
 <div>
   <span>English</span> / <a href=".github/README-es.md">Español</a> / <a href=".github/README-fr.md">Français</a> / <a href=".github/README-de.md">Deutsch</a> / <a href=".github/README-it.md">Italiano</a> / <a href=".github/README-ja.md">日本語</a> / <a href=".github/README-ko.md">한국어</a> / <a href=".github/README-zh-Hans.md">简体中文</a> / <a href=".github/README-zh-Hant.md">繁體中文</a>
 </div>
@@ -32,13 +36,21 @@ PKHeX expects save files that are not encrypted with console-specific keys. Use 
 
 ## Building
 
-PKHeX is a Windows Forms application which requires [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0).
+PKBank requires [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) and C# 14.
 
-The executable can be built with any compiler that supports C# 14.
+Build the solution with:
 
-### Build Configurations
+```
+dotnet build PKBank.slnx --configuration Release
+```
 
-Use the Debug or Release build configurations when building. There isn't any platform specific code to worry about!
+Run the tests with:
+
+```
+dotnet test PKBank.slnx
+```
+
+The new desktop app (Avalonia + SkiaSharp) is being ported from PKForge in phases; see [`progress.md`](progress.md). The classic WinForms UI has been removed.
 
 ## Dependencies
 
@@ -50,4 +62,4 @@ PKHeX's Pokémon Legends: Arceus sprite collection is taken from the [National P
 
 ### IDE
 
-PKHeX can be opened with IDEs such as [Visual Studio](https://visualstudio.microsoft.com/downloads/) by opening the .sln or .csproj file.
+PKBank can be opened with IDEs such as [Visual Studio](https://visualstudio.microsoft.com/downloads/) by opening `PKBank.slnx` or a .csproj file.

@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>PKBank.App</RootNamespace>
+    <AssemblyName>PKBank</AssemblyName>
+    <ApplicationTitle>PKBank</ApplicationTitle>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>14</LangVersion>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(PublishForWindows)' == 'true'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSelfContained>true</PublishSelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllAssembliesForSelfExtract>true</IncludeAllAssembliesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+    <EmbeddedResource Remove="Resources\**" />
+  </ItemGroup>
+
+  <!-- Bundled art: copied (not embedded) next to the exe. Same logical layout as PKForge's MauiAsset rules. -->
+  <ItemGroup>
+    <Content Include="..\..\PKHeX.Drawing.PokeSprite\Resources\img\Big Pokemon Sprites\*.png" Link="Assets\sprites\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.PokeSprite\Resources\img\Big Shiny Sprites\*.png" Link="Assets\sprites\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.PokeSprite\Resources\img\Legends Arceus Sprites\*.png" Link="Assets\sprites\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.PokeSprite\Resources\img\Legends Arceus Shiny Sprites\*.png" Link="Assets\sprites\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.PokeSprite\Resources\img\Artwork Pokemon Sprites\*.png" Link="Assets\artwork\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.PokeSprite\Resources\img\Artwork Shiny Sprites\*.png" Link="Assets\artwork\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.PokeSprite\Resources\img\ball\*.png" Link="Assets\balls\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Resources\UI\lumi\*.png" Link="Assets\sprites\lumi\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.Misc\Resources\img\box\**\*.png" Link="Assets\wallpapers\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.Misc\Resources\img\ribbons\*.png" Link="Assets\ribbons\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\PKHeX.Drawing.Misc\Resources\img\types\*.png" Link="Assets\types\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <PackageReference Include="ZXing.Net" Version="0.16.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PKForge.Domain\PKForge.Domain.csproj" />
+    <ProjectReference Include="..\PKForge.Engine\PKForge.Engine.csproj" />
+    <ProjectReference Include="..\PKForge.Infrastructure\PKForge.Infrastructure.csproj" />
+    <ProjectReference Include="..\PKForge.Chrome\PKForge.Chrome.csproj" />
+    <ProjectReference Include="..\PKForge.AutoMod\PKForge.AutoMod.csproj" />
+  </ItemGroup>
+
+</Project>

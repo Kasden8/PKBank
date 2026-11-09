@@ -1,0 +1,26 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+    <File Path="progress.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/PKBank.App/PKBank.App.csproj" />
+    <Project Path="src/PKForge.AutoMod/PKForge.AutoMod.csproj" />
+    <Project Path="src/PKForge.Chrome/PKForge.Chrome.csproj" />
+    <Project Path="src/PKForge.Domain/PKForge.Domain.csproj" />
+    <Project Path="src/PKForge.Engine/PKForge.Engine.csproj" />
+    <Project Path="src/PKForge.Infrastructure/PKForge.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/PKBank.App.Smoke.Tests/PKBank.App.Smoke.Tests.csproj" />
+    <Project Path="Tests/PKForge.Domain.Tests/PKForge.Domain.Tests.csproj" />
+    <Project Path="Tests/PKForge.Engine.Tests/PKForge.Engine.Tests.csproj" />
+    <Project Path="Tests/PKHeX.Core.Tests/PKHeX.Core.Tests.csproj" />
+  </Folder>
+  <Project Path="PKHeX.Core/PKHeX.Core.csproj" />
+  <Project Path="PKHeX.Drawing/PKHeX.Drawing.csproj" />
+  <Project Path="PKHeX.Drawing.PokeSprite/PKHeX.Drawing.PokeSprite.csproj" />
+  <Project Path="PKHeX.Drawing.Misc/PKHeX.Drawing.Misc.csproj" />
+</Solution>
