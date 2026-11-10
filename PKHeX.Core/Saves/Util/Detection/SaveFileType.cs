@@ -32,6 +32,7 @@ public enum SaveFileType : byte
     LGPE,
     SWSH,
     BDSP,
+    BDSPLumi,
     LA,
     SV,
     ZA,
@@ -82,6 +83,7 @@ public static class SaveFileTypeExtensions
             GameVersion.GP or GameVersion.GE => LGPE,
             GameVersion.SW or GameVersion.SH => SWSH,
             GameVersion.BD or GameVersion.SP => BDSP,
+            GameVersion.BDSPLUMI => BDSPLumi,
             GameVersion.PLA => LA,
             GameVersion.SL or GameVersion.VL => SV,
             GameVersion.ZA => ZA,
@@ -104,6 +106,7 @@ public static class SaveFileTypeExtensions
             SWSH => EntityContext.Gen8,
             LA => EntityContext.Gen8a,
             BDSP => EntityContext.Gen8b,
+            BDSPLumi => EntityContext.Gen8bLumi,
             SV => EntityContext.Gen9,
             ZA => EntityContext.Gen9a,
 

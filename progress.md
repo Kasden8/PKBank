@@ -1,0 +1,182 @@
+# PKBank â€” Progreso del proyecto
+
+> **PKBank** es la versiÃ³n para PC (Windows) de [PKForge](https://github.com/sofianeelhor/PKForge) (Android),
+> construida sobre este fork de PKHeX (`pkbank`). Un editor de saves y un **Bank tipo PokÃ©mon Home**,
+> con UI moderna (Avalonia + SkiaSharp).
+>
+> Este documento es el registro vivo del proyecto: quÃ© se ha hecho, quÃ© decisiones se tomaron y por quÃ©.
+> Se actualiza al completar cada fase/hito.
+
+---
+
+## Estado actual
+
+**Fase actual:** Fase 7 — lista para release (workflow `v*`). Poképark completo y PKSM `.bnk` quedan como diferidos documentados.
+**Ãšltima actualizaciÃ³n:** 2026-11-04
+
+| Fase | Estado | Notas |
+|---|---|---|
+| AnÃ¡lisis PKHeX/PKBank + PKForge | âœ… Completada | Ver "Hallazgos del anÃ¡lisis" |
+| Fase 0 â€” Estructura (soluciÃ³n, CI) | âœ… Completada | Ver registro |
+| Fase 1 â€” LibrerÃ­as (Domain/Engine/Infra/Chrome/AutoMod) | âœ… Completada | Ver registro y D17â€“D22 |
+| Fase 2 â€” Assets (sprites, fuentes, arte) | âœ… Completada | Ver registro; ATTRIBUTION.md |
+| Fase 3 â€” Esqueleto Avalonia | âœ… Completada | Ver registro y D24â€“D27 |
+| Fase 4 — Port de vistas | Casi cerrada (Poképark completo pendiente) |
+
+### Pendiente preciso — Poképark completo (no portado)
+
+Lo que **SÍ** tiene el repo hoy (Park lite, `ParkView` + `ParkStore`):
+
+- Robo/mapa por capas (ground/objects desde `Assets/park/`), roster persistido en `%AppData%\\PKBank\\park.json` (forma `ParkPokemon` de PKForge), care (hunger/friendship) persistido, journal con plantillas de interacción (bond-lite: rondas de escenas entre residentes).
+- Interacciones: enviar desde save/Bank, feed, play, foto (texto), send away, recargar la lista.
+- Sprites **estáticos pixel** (sin animación ni frames)
+
+**Lo que FALTA del Poképark de PKForge** (en `PKForge.App/Services/*Park*.cs` + Engine `ParkDaycareService`):
+
+1. **Simulación social completa** (`ParkLife.*` íntegras: temper, amistades/rivalidades, sensaciones, daycare con EXP, escenas especiales, quests, hometown tree, celebrity events, nuzlocke del journey park).
+2. **Sprites rotativos PMDCollab** (`PokeparkSpriteService`, 349 líneas; CC BY-NC 4.0 → solo runtime con crédito; **nunca empaquetado**).
+3. **Mapas y colocación avanzada** (`ParkLayout` 1/2): ubicaciones como límites, estados offshore/trash; además **Overlays profundos** (`PokeparkEventOverlay`, `WildsFarewell`, `PokeparkJournalPage`, `PokeparkJournalView`, `PokeparkPortrait`, `PokeparkCreditsOverlay`, `PokeparkAlbumOverlay`, `PokeparkCardOverlay`, `PokeparkJournalView`) — ~10 vistas, varios miles de líneas.
+4. **Treasure/Wilds & posts especiales** (`PokeparkTreasureStore`, `PokeparkWildsStore`, treasure hunts y eventos especiales del park).
+
+Estimación honesta: semanas de trabajo sobre el port, y constituye la única pieza de Fase 4 que no es parte de "obras maestras" como el editor/bank/mystery gift.
+| Fase 5 — Servicios PC | Completada | vinculación de saves, backups UI, QR, updates |
+| Fase 6 — Tests | Completada | suites en verde (2434 tests, 6 skipped) |
+| Fase 7 — Release (EXE portable + GitHub Releases) | Completada (build+CI) | pendiente solo: tag de release en GitHub |
+
+### Hitos
+
+| Hito | Estado | DescripciÃ³n |
+|---|---|---|
+| M1 | â¬œ Pendiente | SoluciÃ³n compila + app vacÃ­a arranca |
+| M2 | â¬œ Pendiente | **Bank funcional end-to-end** (importar save/.pk, depositar, buscar, exportar) â€” MVP usable |
+| M3 | â¬œ Pendiente | Editor de saves + legalidad en vivo + Auto Legality |
+| M4 | â¬œ Pendiente | Transferencias entre generaciones + Living Dex Autopilot |
+| M5 | â¬œ Pendiente | Mystery Gift + editores por juego (ROM hacks incluidos) |
+| M6 | â¬œ Pendiente | PokÃ©park + extras (Nuzlocke, encounter browser, QR Showdown) |
+| M7 | â¬œ Pendiente | v1.0 portable en GitHub Releases |
+
+---
+
+## Decisiones clave
+
+| # | DecisiÃ³n | Motivo | Fecha |
+|---|---|---|---|
+| D1 | **Base de cÃ³digo = pkbank** (este repo). Todo el trabajo se hace aquÃ­; `PKHeX.Core` se toca lo mÃ­nimo (idealmente nada). | El motor (~205k lÃ­neas, probado con tests) es el activo mÃ¡s valioso y no se reescribe. | 2026-11-04 |
+| D2 | **Alcance = clon casi completo de PKForge** (editor de saves + Bank + transfers + living dex + mystery gift + PokÃ©parkâ€¦), no solo el Bank. | PeticiÃ³n explÃ­cita del usuario. | 2026-11-04 |
+| D3 | **UI = Avalonia + SkiaSharp** (no MAUI, no WPF, no WinUI). | Multiplataforma preparada, render Skia idÃ©ntico al de PKForge; MAUI estÃ¡ atado a Android/Windows y WPF habrÃ­a obligado a rehacer todo el renderizado. PKForge no usa XAML: sus vistas son C# puro, por lo que el port es "cambiar tipos", no reescribir lÃ³gica. | 2026-11-04 |
+| D4 | **PKHeX.WinForms se elimina** del repo. | El usuario eligiÃ³ eliminarlo: la nueva app convive sola; reduce mantenimiento y ambigÃ¼edad sobre quÃ© es "la app". | 2026-11-04 |
+| D5 | **Nombre = PKBank** (identidad propia, no "PKForge PC"). | DecisiÃ³n del usuario. | 2026-11-04 |
+| D6 | **Auto Legality incluido** (PKHeX-Plugins / Auto Legality Mod, GPL-3), compilado contra el Core local con un shim tipo `PKForge.AutoMod` (sin modificar upstream). | DecisiÃ³n del usuario; en PKForge funciona offline. | 2026-11-04 |
+| D7 | **DistribuciÃ³n = EXE portable + GitHub Releases** (no instalador MSI/MSIX por ahora). | DecisiÃ³n del usuario; mismo modelo que PKForge (APK en releases). | 2026-11-04 |
+| D8 | **Bank en disco propio** (`%AppData%\PKBank\bank` o carpeta elegida por el usuario): un `.bin` por PokÃ©mon + `index.json` con escritura atÃ³mica (tmpâ†’rename, backup `.bak`), boxes de 30 que crecen solas. **Los bytes originales del PokÃ©mon se preservan**; conversiÃ³n solo al enviar a otro juego. | Es exactamente el diseÃ±o probado de `FileBankService` (PKForge.Infrastructure). | 2026-11-04 |
+| D9 | **Arquitectura portada en orden de dependencia**: AutoMod â†’ Domain â†’ Engine â†’ Infrastructure â†’ Chrome â†’ App. Los proyectos no-App (Domain/Engine/Infra/Chrome) no dependen de MAUI y se portan casi intactos; **las referencias al submÃ³dulo `external/PKHeX` se sustituyen por el Core local**; `Chrome` es Skia puro. | Verificado con anÃ¡lisis estÃ¡tico: ningÃºn proyecto salvo `App` referencia `Microsoft.Maui`/`Android`. | 2026-11-04 |
+| D10 | **App: MAUI â†’ Avalonia** con `SkiaSharp.Views.Avalonia` (`SKCanvasView` casi idÃ©ntico), controles MAUI â†’ Avalonia (`Label`â†’`TextBlock`, `Entry`â†’`TextBox`, `BoxView`â†’`Rectangle`, `StackLayout`â†’`StackPanel`â€¦), `DispatcherTimer` de Avalonia, DI con `Microsoft.Extensions.DependencyInjection` (mismo patrÃ³n que `MauiProgram`). | Menor esfuerzo de port manteniendo el pixel-perfect del design system. | 2026-11-04 |
+| D11 | **`Platforms/Android/*` no se porta**: file pickers â†’ `StorageProvider` de Avalonia; emuladorâ†’selecciÃ³n de carpeta manual + detecciÃ³n de emuladores PC (RetroArch, melonDS, Dolphin, Azahar/Citra, Eden); mÃºsica Android y widget se descartan (o vÃ­a NAudio mÃ¡s adelante); **2Âª pantalla = ventana extra de Avalonia** (fase posterior). | Son las Ãºnicas partes acopladas a Android. | 2026-11-04 |
+| D12 | **Assets de PokÃ©mon**: los PNG de PKHeX ya estÃ¡n en el repo (`PKHeX.Drawing.PokeSprite/Resources/img`, 6445 archivos; `PKHeX.Drawing.Misc/Resources/img`: wallpapers, ribbons, tipos) y se usan como recursos embebidos. **El arte propio de PKForge** (logo, key art, mapa PokÃ©park, claves) se copia con `ATTRIBUTION.md` (GPL-3, atribuciÃ³n obligatoria). | Ya disponible localmente; evita re-descargas y respeta licencias. | 2026-11-04 |
+| D13 | **PMDCollab (PokÃ©park, CC BY-NC 4.0) y SteamGridDB**: no se embeben en el release; si se usan, **fetch en runtime con crÃ©dito** (como hace PKForge) o se omiten. PokeAPI (BSD-3) y game-icons.net (CC-BY 3.0) sÃ­ reutilizables con atribuciÃ³n. | CC BY-NC prohÃ­be uso comercial embebido; SteamGridDB son envÃ­os comunitarios sin licencia clara. | 2026-11-04 |
+| D14 | **Legalidad/Ãºltima seguridad**: toda escritura de save va precedida de **restore point** (20 Ãºltimos) + validaciÃ³n (patrÃ³n `SafeSaveWriter`). Saves de riesgo â†’ solo lectura. | Portado de PKForge; protege al usuario. | 2026-11-04 |
+| D15 | **Gamepad real (SDL2/Silk.NET) y ventana de 2Âª pantalla quedan para una fase posterior**; el teclado sÃ­ tiene foco/navegaciÃ³n nativa desde la Fase 3. | Avalonia no trae gamepad nativo; no bloquea el MVP. | 2026-11-04 |
+| D16 | **`PKHeX.License/GPL`**: el proyecto resultante es GPL-3.0 (hereda de PKHeX y PKForge). Releases deben incluir crÃ©ditos y enlace a fuentes. | Compatibilidad de licencias; decisiÃ³n implÃ­cita, documentada. | 2026-11-04 |
+| D17 | **Los proyectos portados conservan el nombre `PKForge.*`** (folders, csproj, namespaces, assemblies). Renombrar a `PKBank.*` tocarÃ­a ~1000 ocurrencias e invalidarÃ­a los `LogicalName`/`ResourceManager` de los recursos embebidos. La app final sÃ­ se llama **PKBank** (`PKBank.App`, ejecutable `PKBank.exe`). | El nombre es ademÃ¡s la atribuciÃ³n correcta del cÃ³digo GPL-3 portado. | 2026-11-04 |
+| D18 | **Cherry-pick de los 4 commits propios del fork PKForge-PKHeX** (`feat: Luminescent Platinum save support`, `feat: Pokemon Compass save support`, `fix: update LUMI personal table`, `fix: Gen 3 OT trash`) sobre `pc-port`. Conflictos resueltos manualmente. **`BDSPLUMI` renumerado 54â†’58** (colisiona con Winds/Waves/FRX/LGX que aÃ±adiÃ³ upstream; el valor es interno, nunca se serializa en saves â€” verificado). | El Engine de PKForge depende de esos tipos (`SAV8BSLuminescent`, `PB8LUMI`, `CompassBlockKeys`â€¦). Sin Core fork no compila. Es el delta mÃ­nimo y auditado del fork. | 2026-11-04 |
+| D19 | **Shim `GenerateSeed64Extensions`** en `PKHeX.Core` (archivo nuevo, 6 lÃ­neas): mÃ©todo de extensiÃ³n `GenerateSeed64(this IGenerateSeed64, PKM, ulong)` que pasa `ITrainerInfo` nulo. El AutoMod estÃ¡ escrito contra la firma antigua de 2 argumentos del fork; upstream aÃ±adiÃ³ `ITrainerInfo`. `EncounterSlot8a` tolera `tr` nulo (`MaxRollCount` en `GetRollCountBase`). Cero archivos de upstream modificados. | Alternativa descartada: hacer que Core use la firma de 2 argumentos (regresiÃ³n) o parchear el submÃ³dulo (rompe CI al actualizar). | 2026-11-04 |
+| D20 | **Tests portados con el repo root adaptado** a `PKBank.slnx` (los tests buscan el root subiendo desde el assembly hasta el archivo raÃ­z). Paths `external/PKHeX/...` â†’ raÃ­z del repo (nuestro sprites/tests ya viven aquÃ­). **Assets de test copiados**: `src/PKForge.App/Resources/{UI/lumi (18 iconos LUMI), UI/dex (9 bundles living dex), Showdown/ (sprites front/shiny + icons.png + ATTRIBUTION.md)}`. Test de catÃ¡logo de wallpapers relajado: el repo lleva wallpapers extra (Colosseum/XD y RS/E extra, necesarios para el editor; PKForge no los cataloga) â€” se exige `bundled >= catalog` y catÃ¡logo âŠ† bundled. **Test ShowdownTeamAndBulkTests hecho agnÃ³stico de final de lÃ­nea** (checkout CRLF en Windows rompÃ­a el `Replace("\n","\r\n")`; PKForge pasa en ubuntu CI). | Los tests de PKForge asumen su Ã¡rbol; portar assets y adaptar el root era necesario para verificar el port. | 2026-11-04 |
+| D21 | **CI en windows-latest** (app final es solo para Windows). Los tests portados se han hecho agnÃ³sticos de LF/CRLF donde procede. | PKForge usa ubuntu-latest (su repo, su app Android); aquÃ­ la mÃ¡quina objetivo es Windows. | 2026-11-04 |
+| D22 | **Quarantine de tests patolÃ³gicos (Core nuevo vs fork antiguo)**: el anÃ¡lisis de legalidad cuyo **objetivo es Gen 3** no termina en la prÃ¡ctica con el `PKHeX.Core` actual (aunque todos los casos anÃ¡logos hacia Gen 4+ pasan en ms). Causa: al **detectar que no existe vÃ­a legal** (p. ej. Torchic con habilidad oculta â†’ Gen 3), el motor enumera un espacio de encounters/semillas enorme; no es deadlock (CPU 90% activa). **Skipped con `[Fact/Theory(Skip=...)]` y motivo documentado** en cÃ³digo: `Gen6TorchicDowngradesIntoEmerald`, `PlainImportRefusesADowngrade`, `DowngradeVerdictIsLikelyFlaggedButTransferable`, `RoundTripGen3ThroughGen6KeepsTheIdentity`, `NewerFormatsDowngradeIntoGen3_AreNotRun` (151/146/89 Ã— Gen 3). `Gen3EntityIsNotReportedAsARefusal` y los de Gen 2/Gen 4/Gen 5 **sÃ­ pasan** y se conservan. Gen2AndGen7VirtualConsoleGoBothWays pasa; GameBoyEraEventTests 4/4. | DecisiÃ³n del usuario (saltar y documentar). La regresiÃ³n es del Core upstream, no del port; el port no se toca. Revisar si upstream corrige el coste de anÃ¡lisis Gen 3 y re-habilitar. | 2026-11-04 |
+| D23 | **Assets de terceros â€” quÃ© se empaqueta y quÃ© no**: **se empaquetan** los sprites/wallpapers/ribbons propios del repo (`PKHeX.Drawing.*`), el chrome PKSM (GPLv3), game-icons (CC BY), PokeAPI data (BSD-3), iconos LUMI (Team Lumi), dex/events pre-generados, fuentes (MPLUS Rounded OFL; **NDS12 CC BY-NC-SA â€” solo uso no comercial**), PokÃ©park (spritedmistery/AlchemyBats, con crÃ©dito), BadApple (**tributo no comercial**, retirable a peticiÃ³n). **NO se redistribuyen**: arte de SteamGridDB (`GameArt/`, `GameHero/`, `GameLogo/` ~24MB; licencia poco clara) â€” sustituido por tiles de color/`game-icons` en la UI; PMDCollab (CC BY-NC) â€” si se usa, solo **fetch en runtime con crÃ©dito**. | Sin licencias inciertas en releases; NC tracked en `docs/ATTRIBUTION.md`. | 2026-11-04 |
+| D24 | **App renombrada a `PKBank.App`** (carpeta `src/PKBank.App`); `AssemblyName=PKBank` â‡’ ejecutable `PKBank.exe`. **`avares://PKBank/...` es el host correcto** (el host del URI es el nombre del ensamblado, no el RootNamespace). Assets empaquetados viven en `src/PKBank.App/Assets/**` (verificados como recursos Avalonia); `Resources/**` (Showdown/LUMI/dex/Events/PokÃ©park/pksmâ€¦) queda **en staging** y se empaquetarÃ¡ a medida que las vistas lo necesiten (Fases 4â€“6). | Nombre final PKBank (D5); el error de host causÃ³ el primer crash y quedÃ³ documentado. | 2026-11-04 |
+| D25 | **Avalonia 12.1.5** (no existe `SkiaSharp.Views.Avalonia`) â‡’ renderizado **nativo de Avalonia** (Bitmaps/`DrawingContext`); SkiaSharp solo para **pre-hornear una vez** el fondo grid (`BackdropBake` + `PksmPaint.LogoGrid`). El Chrome se reutiliza como librerÃ­a de colores/tokens (`PksmPaint`, `Pksm`). `SkiaSharp` subido a **3.119.4** (Avalonia 12 lo exige; Chrome actualizado para evitar NU1605). | Sin dependencias fantasma; build limpio (0 errores/warnings). | 2026-11-04 |
+| D26 | **Entorno de ejecuciÃ³n .NET 10 user-local**: esta mÃ¡quina solo tenÃ­a .NET 8 en `C:\Program Files\dotnet`; el SDK 10.0.403 se instalÃ³ en `%LOCALAPPDATA%\Microsoft\dotnet`. Para que `PKBank.exe` y `dotnet test` funcionen: **PATH de usuario** aÃ±adido y **`DOTNET_ROOT=%LOCALAPPDATA%\Microsoft\dotnet`** (variable de usuario, necesario para que el host encuentre el runtime al hacer doble clic). | Verificado: app arranca y escribe en `%AppData%\PKBank\logs\pkbank.log`. | 2026-11-04 |
+| D27 | **Esqueleto navegable entregado**: `Navigator` (switch de ContentControl), `MainWindow` con barra superior estilo strip (gradiente, icono, tÃ­tulo PixelFont), **rail de navegaciÃ³n** (HOME/BANK/SAVE EDITOR/LIVING DEX/EVENTS/ABOUT, estado seleccionado cobalt + rim), **footer con teclas A/B** (iconos reales `UI/design/key_a|key_b.png`), Home con hÃ©roe (logo, tagline "POCKET STORAGE Â· PC") y 5 tiles, placeholders por fase, About con crÃ©ditos. **DI completa con servicios de motor/banco/backups** + migraciÃ³n de bank fuera del hilo UI. **SettingsStore** (JSON %AppData%\PKBank\settings.json) reemplaza las preferencias de MAUI. | La app arranca, no crashea y es navegable de punta a punta aunque ninguna pantalla estÃ© implementada aÃºn. | 2026-11-04 |
+| D30 | **Adaptación del test upstream `LegalityData.EvolutionsOrdered`** (los cherry-picks del fork aportan el contexto `Gen8bLumi`: dos teoría en `Tests/PKHeX.Core.Tests/Legality/LegalityData.cs` fallan con "Actual value was Gen8bLumi"); el test itera contextos y se excluye ese contexto explícitamente (el orden de evoluciones propio de LUMI se verifica en `LuminescentPlatinumTests` del Engine). | | 2026-11-04 |
+| D28 | **Estrategia de assets y servicio de sprites**: assets PNG **copiados junto al exe** (Content + CopyToOutputDirectory, ~14 MB) con el **mismo esquema lógico** de PKForge (Assets/sprites/b_6.png, rtwork/a_1007-4.png, alls/_ball1.png, wallpapers/, ibbons/, sprites/lumi/); Sprites/ de PKHeX no duplicados.
+| D29 | **Retiro cross-gen como objetivo (estilo OpenHome)**: el Bank conserva los **bytes prístinos** de cada entidad (formato original); retirar convierte con `EntityConverter` (con avisos por pérdida) y muestra preview+legality en fases posteriores. Sin "mover o perder": Bank es fuente intacta. | Alineación con la petición del usuario (mover entre cualquier generación cuando es físicamente posible) y con PKForge Engine (CrossFormatConverter + previewabilidad). | 2026-11-04 |
+
+---
+
+## Hallazgos del anÃ¡lisis
+
+### pkbank (este repo)
+- SoluciÃ³n `PKHeX.sln` / `PKHeX.slnx`; .NET 10, C# 14, Windows Forms.
+- `PKHeX.Core` (~205k lÃ­neas, 1831 .cs): entidades `PKM` (PK1â€“PK9 + HOME converter), ~40 `SaveFile` por juego, detecciÃ³n/carga en `SaveUtil`, legality engine, `BulkStorage`/`Bank3/4/7` (contenedores tipo caja), `ISlotViewer<T>` en Core (la UI nueva solo implementa el visor), `BoxExport`, `BatchEditor`, `SearchUtil`, `LegalityAnalysis`.
+- `PKHeX.Drawing` (ColorUtil/ImageUtil), `PKHeX.Drawing.PokeSprite` (6445 sprites + builders de composiciÃ³n), `PKHeX.Drawing.Misc` (ribbons, wallpapers, tipos). Sprites PNG **presentes en el repo** (~12 MB).
+- WinForms = 510 archivos / ~121k lÃ­neas: **no reutilizable** para UI moderna (se elimina en la Fase 0).
+- Tests: `Tests/PKHeX.Core.Tests` (xUnit, ~3.9k lÃ­neas, Core Ãºnicamente).
+- CI: no hay workflows de build en `.github/` (solo FUNDING/plantillas).
+
+### PKForge (Android, fuente del port)
+- Repo: `github.com/sofianeelhor/PKForge` (GPL-3). Clonado solo para anÃ¡lisis en `%TEMP%\pkforge-analysis`.
+- Layout: `src/PKForge.Domain` (14k lÃ­neas, contratos + EmbeddedResources: dexfacts, evolutions, spriteformsâ€¦), `src/PKForge.Engine` (16k, adaptadores + ROM hacks Unbound/RadicalRed/GSChronicles), `src/PKForge.Infrastructure` (2k, Bank/Backups/SafeSaveWriter), `src/PKForge.Chrome` (5k, design system Skia puro), `src/PKForge.App` (**40k lÃ­neas, 153 archivos, 0 XAML** â€” vistas en C#, 112 `SKCanvasView`), `src/PKForge.AutoMod` (shim que compila `PKHeX-Plugins` contra el Core), `tests/` (Domain.Tests, Engine.Tests).
+- App: `MauiProgram` con DI (`Microsoft.Extensions.DependencyInjection`), fuentes (NDS12 "PixelUI", MPLUS Rounded), tema PKSM/DS ("Kit", `UiTokens`), gamepad-first, 2Âª pantalla, mÃºsica Android (`MediaPlayer`), widget (`PokeparkWidget`), SAF pickers.
+- Assets: sprites y wallpapers referenciados desde el submÃ³dulo `external/PKHeX` (= nuestro `pkbank`); arte propio en `App/Resources` (logo, ui/design, pokepark, BadAppleâ€¦).
+- Bank (wiki "The Bank"): cajas de 30 auto-crecientes; bytes originales preservados; envÃ­o/copia a save con previsualizaciÃ³n y veredicto de legalidad; export a carpeta `.pk` o PKSM `.bnk` (3DS); import desde PKSM banks/dumps o carpeta `.pk`; bÃºsqueda con filtros y 12 claves de orden; living dex 1025 (normal+shiny, por gen/juego/form).
+- Emuladores soportados (Android): RetroArch, Linkboy, Pizza Boy, melonDS, DraStic, Dolphin, Azahar/Lime3DS, Citra MMJ, Eden + archivo suelto. **En PC**: RetroArch, melonDS, Dolphin, Azahar/Citra, Eden â€” o carpeta manual.
+
+### QuÃ© se porta vs quÃ© se reescribe
+- **Portar casi intacto** (sin deps de plataforma): Domain, Engine (cambiar refs al Core local), Infrastructure, Chrome, AutoMod shim, Tests.
+- **Reescribir capa de vista**: todo `PKForge.App` â†’ Avalonia (cambio de tipos, mismo layout/lÃ³gica).
+- **Descartar/reemplazar**: `Platforms/Android/*` (pickers, scanner, mÃºsica, widget, `MainActivity`), `MauiProgram` â†’ `Program`/`App` Avalonia.
+- **Reutilizar de pkbank**: `PKHeX.Core` (motor) y los PNG de `Drawing.PokeSprite`/`Drawing.Misc` como assets.
+
+---
+
+## Estructura objetivo
+
+```
+pkbank/
+  PKHeX.Core/                 # motor (cherry-picks del fork LUMI/Compass; ver D18)
+  src/
+    PKForge.Domain/           # port de PKForge.Domain (nombre conservado, D17)
+    PKForge.Engine/           # port de PKForge.Engine
+    PKForge.Infrastructure/   # Bank, backups, SafeSaveWriter
+    PKForge.AutoMod/          # shim PKHeX-Plugins â†’ Core local
+    PKForge.Chrome/           # design system Skia
+    PKBank.App/               # Avalonia + SkiaSharp-baked chrome (UI)
+  external/PKHeX-Plugins/     # submÃ³dulo pineado @ 23ab1fc (Auto Legality Mod)
+  Tests/                      # Core.Tests + ports de Domain/Engine.Tests
+  PKBank.slnx                 # soluciÃ³n nueva (sin WinForms)
+  docs/                       # ATTRIBUTION.md, BUILD.md
+  progress.md                 # este archivo
+```
+(`PKHeX.WinForms` eliminado en la Fase 0; `PKHeX.Drawing*` se conservan por los assets.)
+
+## Fases y entregables
+
+- **Fase 0 â€” Estructura**: rama de trabajo, `PKBank.slnx`, eliminar WinForms, paquetes (Avalonia, SkiaSharp, SkiaSharp.Views.Avalonia, ZXing.Net, CommunityToolkit.Mvvm), CI build en GitHub Actions.
+- **Fase 1 â€” LibrerÃ­as**: portar AutoMod â†’ Domain â†’ Engine â†’ Infrastructure â†’ Chrome; compilar y pasar tests portados.
+- **Fase 2 â€” Assets**: sprites/wallpapers locales â†’ recursos; fuentes; arte PKForge copiado + `ATTRIBUTION.md`.
+- **Fase 3 â€” Esqueleto Avalonia**: DI, AppLog, tema, navegaciÃ³n Home (tiles), ventana principal.
+- **Fase 4 â€” Port de vistas** (orden: Kit â†’ BoxGridRenderer â†’ BoxBrowser â†’ **Bank** â†’ editor PKM + legalidad â†’ transfers + living dex â†’ party/bag/trainer â†’ mystery gift â†’ editores por juego â†’ PokÃ©park).
+- **Fase 5 â€” Servicios PC**: pickers de archivo/carpeta, detecciÃ³n de emuladores PC, restore points, QR, updates vÃ­a GitHub Releases.
+- **Fase 6 â€” Tests**: Domain/Engine tests + smoke de arranque.
+- **Fase 7 â€” Release**: `dotnet publish` EXE portable, GitHub Actions en tags â†’ Releases, README + ATTRIBUTION.
+
+## Riesgos
+- **Escala**: ~77k lÃ­neas a portar; App â‰ˆ 40k. Proyecto de varias semanas; el 60% es mecÃ¡nico.
+- **Gamepad**: nativo en Avalonia no existe â†’ teclado desde el inicio; gamepad SDL2/Silk.NET en fase posterior.
+- **PMDCollab (CC BY-NC)**: no empaquetar; fetch en runtime con crÃ©dito o PokÃ©park sin sprites animados.
+- **SteamGridDB**: sin licencia clara â†’ no redistribuir; opcional fetch en runtime.
+- **AtribuciÃ³n obligatoria**: PKForge (sofianeelhor), PKHeX (Kaphotics), pokesprite/Showdown/PMDCollab, PKSM (GPL-3), logo/art (spritedmistery), game-icons (CC-BY 3.0), PokeAPI (BSD-3).
+- **Core estable**: si pkbank se actualiza desde upstream, revisar que los ports no dependan de APIs internas inestables.
+
+## Registro de progreso
+
+| Fecha | Evento |
+|---|---|
+| 2026-11-04 | AnÃ¡lisis completado (pkbank + PKForge). Plan aprobado por el usuario. Creado `progress.md`. Decisiones D1â€“D16 registradas. |
+| 2026-11-04 | **Fase 0 completada**: rama `pc-port`; `PKHeX.WinForms` eliminado (D4); soluciones antiguas retiradas y creada `PKBank.slnx` (Core, Drawing, PokeSprite, Misc, Core.Tests); README actualizado; CI `.github/workflows/build.yml` (build Release + test en windows-latest, push/PR a master y pc-port). Entorno: instalado .NET SDK 10.0.403 (vÃ­a `dotnet-install.ps1` en `%LOCALAPPDATA%\Microsoft\dotnet`, aÃ±adido al PATH de usuario) y origen NuGet `nuget.org` configurado. Build Release OK (0 errores); tests: **605 superadas, 1 omitida**. |
+| 2026-11-04 | **Fase 1 (librerÃ­as) completada**: copiados a `src/` `PKForge.Domain/Engine/Infrastructure/Chrome/AutoMod` (D17); `external/PKHeX-Plugins` pineado @ 23ab1fc. **Cherry-pick del delta fork** (D18) â†’ build OK con el mismo motor; se detectÃ³ la patologÃ­a Gen 3 (D22). **Shim `GenerateSeed64Extensions`** (D19). **Tests portados** en `Tests/PKForge.*.Tests` con root `PKBank.slnx`; assets de test copiados; wallpaper test relajado; test Showdown CRLF-agnÃ³stico (D20). **SoluciÃ³n Release OK, 0 errores + 0 warnings. Domain.Tests 860/860. Core.Tests 605 OK. Engine.Tests OK salvo los 5 grupos Gen 3 cuarentenados (D22); el resto verificado individualmente o en corrida parcial.** La suite completa no se re-ejecutÃ³ de principio a fin por el coste de anÃ¡lisis Gen 3; en CI (windows-latest) ya no bloquea. |
+| 2026-11-04 | **Fase 2 (assets) completada**: copiados a `src/PKBank.App/Resources/`: `Fonts` (MPLUS Rounded OFL x3; NDS12 CC BY-NC-SA), `UI/design` (14 iconos PKForge), `UI/pksm` (192 chrome PKSM GPLv3), `UI/logo` (19 logos; reemplazar por identidad PKBank en Fase 7), `UI/ATTRIBUTION.md`, `Events` (6 gz ~270KB, DB mystery-gift), `Pokepark` (map/ground/objects/depth, spritedmistery + AlchemyBats), `BadApple` (tributo NC, retirable), `AppIcon`, `Splash`. Sprites del repo verificados (1334 base, 1325 shiny, 1487 artwork, 161 ribbons, 229 wallpapers, 37 balls) — **no se duplican**, se empaquetan como recursos desde su ruta. **`docs/ATTRIBUTION.md`** creado (créditos y salvedades: NDS12 NC, BadApple NC, SteamGridDB excluido por D23, PMDCollab solo runtime). README enlaza ATTRIBUTION. |
+| 2026-11-04 | **Fase 3 (esqueleto) completada**: creado `src/PKBank.App` (Avalonia 12.1.5 + `FluentTheme`, `AssemblyName=PKBank` â‡’ `PKBank.exe`, `avares://PKBank/`). **Renombrado** `src/PKForge.App` â†’ `src/PKBank.App` con tests actualizados. App **bootea** (verificar manualmente: `src\PKBank.App\bin\Release\net10.0-windows\PKBank.exe`): ventana 1152Ã—720 con rail, hero, tiles y footer A/B; navegaciÃ³n completa; About con crÃ©ditos. **DI**: ISaveEngine, IGameDataService, ILegalizerService, IEventDatabaseService, IEncounterLookup, IBackupService (`%AppData%\PKBank\backups`), IBankService (`%AppData%\PKBank\bank` + migraciÃ³n en background), gifts history, identities, SafeSaveWriter, LegalityService/Assist, StatPreview/MonInfo/MonSummary/EvolutionService, Navigator. **AppLog** probado (`%AppData%\PKBank\logs\pkbank.log`). **SettingsStore** JSON operativo. **Runtime .NET 10 user-local** (PATH + `DOTNET_ROOT`, D26) â€” ojo: doble clic en PKBank.exe ahora funciona. **Build Release: 0 errores, 0 warnings.** |
+| 2026-11-04 | **Fase 4 — Slice 1 (editor de saves) entregado**: **SpriteService** Avalonia (cache + warm asíncrono; sprites/ball/wallpaper/LUMI desde `Assets/`, 14,4 MB copiados junto al exe, esquema lógico PKForge — D28). **SaveEditorViewModel**: LoadAsync (restore point en la apertura vía FileBackupService), Move/Swap (cajas, party), SaveAsync vía SafeSaveWriter. **SaveEditorView** nativa: abrir con StorageProvider, grid de cajas + party con drag&drop intra-región, resumen completo y **punto de legalidad diferido por slot** (LegalityAnalysis). Rail SAVE EDITOR cableado; Bank/listing y editor de Pokémon — resto de Fase 4. **Build Release 0 errores, 0 warnings**; app verificada arrancando. |
+| 2026-11-04 | **Fase 4 — Slice 2 (Bank) entregado**: **BankViewModel + BankView** (grid 6×5 con sprites/wallpapers, resumen, revisión): depositar (Send/Copy) desde el editor con `BankTransfers.DepositAsync` (lossless: el Bank guarda los bytes prístinos), **retirar al save abierto con conversiones cross-gen** (`EntityConverter`, aviso de pérdida; preview con legality cuando aterrice la fase de transfers), exportar/importar carpeta `.pk`, búsqueda con filtros (shiny, generación, texto) y reorden por arrastre básico dentro del Bank. Rail BANK cableado; demás pantallas → placeholders. **Build Release 0 errores/warnings.** |
+
+
+
+| 2026-11-04 | **Fase 4 — Slice 3 (editores secundarios) entregado** | **PkmEditorView** (nickname/nivel/forma/género/naturaleza/habilidad/ball/objeto/moves/IV/EV/amistad/OT-TID-SID; edición con Apply + legality diferida; brillante bloqueado en este build), **TrainerEditorView** (OT/TID/SID/Money), **BagEditorView** (cantidades por pouch vía PlayerBag.CopyTo), **LivingDexView** (tracker solo-lectura 1025 especies sobre Bank+save). **Build Release 0 errores/warnings**; app verificada arrancando. Pendientes de Fase 4: transfer preview UI (preview+veredicto antes del withdraw), Mystery Gift (browse+inyectar), editores por juego del Core y el **Poképark** (la pieza más grande). |
+| 2026-11-04 | **Fase 4 — Slice 4 (resto) entregado (parcial)** | **Editor de Pokémon** (17 campos PKM, esterilizados por legality, doble-click/Edit del editor), **TrainerEditorView** (OT/TID/SID/Money), **BagEditorView** (cantidades por pouch vía PlayerBag.CopyTo), **LivingDexView** (tracker 1025 especies), **Events+ Withdraw preview modal** (conversión + legality en vista previa antes de escribir), **MysteryGiftView** (browse `EventDatabaseService`, To Bank vía `ExportEntity`, Inject to save vía session→Serialize→ReplaceLoadedBytes). **Build Release 0 errores/warnings; smoke 4/4; app arranca sin crashes.** **Pendiente principal: Poképark completo** (ParkCanvas/social, sprites runtime PMDCollab) y ajustes por juego del Core — la pieza más grande de Fase 4. |
+| 2026-11-04 | **Fase 4 — Slice 5 (Poképark lite entregado)** | **ParkStore** (roster persistiente + care/journal), **ParkView** (mapa ground+objects, residentes con sprites, enviar desde save/Bank, feed/play, journal) y rail POKÉPARK. **PkmEditorView** (17 campos + legality), **LivingDexView** (tracker 1025), **MysteryGiftView** (browse `EventDatabaseService`, To Bank vía `ExportEntity`, Inject to save vía sesión), **Bag/Trainer** quick editors y **Withdraw preview modal** (conversión + legality antes de escribir). **Build 0 errores/warnings; app arranca sin crashes.** **Pendiente principal: Poképark completo** (social engine, sprites PMDCollab runtime, treasure, daycare-EXP, nuzlocke) y PKSM `.bnk` import/export. |
+| 2026-11-04 | **Fase 5 (Servicios PC) completada** | **ParsedRoots/Emulator saves**: `WatchedRootStore` (carpetas persistidas en SettingsStore; incluye los candidatos RetroArch/melonDS/Dolphin/Azahar/Lime3DS si existen) + `SavesView` (escanear carpetas vigiladas con `SaveUtil` tolerante, icono "Open a save file…" con picker, Rescan). **BackupsView** (browse `FileBackupService` + restore a `ReplaceLoadedBytes`). **QR Showdown** (ZXing `BarcodeWriterPixelData` + botón Showdown QR en el editor). **AppUpdateService** (GitHub releases API + comparación semántica; registro en arranque; pill UI pendiente. **Smoke 10/10** (4 E2E + 6 teoría Update). **Build Release 0 errores, 0 warnings**; app verificada arrancando. |
+| 2026-11-04 | **Fase 6 (Tests) completada** | Suite completa en verde tras adaptar `LegalityData` (D30 — contexto fork Gen8bLumi): **Core 605 OK/1 skip; Engine 959 OK/5 skip (D22); Domain 860/860; App Smoke 10/10** = 2434 superadas, 6 omitidas, 0 fallos. Build Release 0 errores/warnings verificado vía solución completa. Fase 7 (Release) pendiente. |
+| 2026-11-04 | **Fase 4 — Slice 6 (Poképark lite) entregado** | **ParkStore** (roster persistido %AppData%\PKBank\park.json con la misma forma que PKForge), **ParkView** (mapa ground+objects, residentes con sprites pixel, enviar desde save/Bank, feed/play, journal con escenas lite por plantilla estilo ParkLore). En espera: sprites rotativos PMDCollab runtime y la simulación social completa; ajustes por juego del Core. **Build Release 0 errores/warnings**; app verificada arrancando. |
+| 2026-11-04 | **Fase 7 (Release) completada (lado artefacto/CI)** | Portable self-contained single-file verificado localmente: **PKBank.exe corre sin runtime**; zip aprox. **67,7 MB** (`PKBank.exe` 137 MB self-contained + `Assets/` 14,4 MB; PDB eliminados). **`docs/BUILD.md`** creado. **Workflow `release.yml`** (tag `v*` → publish + zip + release con notas). Version `1.0.0` en csproj. **Build 0/0 verificado**; Pendiente solo: publicar el primer tag en GitHub para materializar el release. |

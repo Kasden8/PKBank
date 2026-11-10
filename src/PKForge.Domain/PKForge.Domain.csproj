@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>PKForge.Domain</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Move/ability/item facts from PokeAPI (BSD-3), built by tools/DexFacts/build.py. -->
+    <EmbeddedResource Include="Resources/dexfacts.tsv.gz" LogicalName="PKForge.Domain.dexfacts.tsv.gz" />
+    <!-- PKHeX form -> PokeAPI HOME/Showdown sprite stems, built by tools/SpriteForms/build.py. -->
+    <EmbeddedResource Include="Resources/spriteforms.tsv" LogicalName="PKForge.Domain.spriteforms.tsv" />
+    <!-- PKHeX form -> Pokémon Showdown front sprite / icon. -->
+    <EmbeddedResource Include="Resources/showdownsprites.tsv" LogicalName="PKForge.Domain.showdownsprites.tsv" />
+    <!-- PKHeX form -> PMDCollab sprite folder for the Poképark, built by tools/SpriteForms/pmd.py. -->
+    <EmbeddedResource Include="Resources/pmdforms.tsv" LogicalName="PKForge.Domain.pmdforms.tsv" />
+    <!-- Species -> pre-evolution and evolution family (PokeAPI, BSD-3), built by tools/DexFacts/evolutions.py. -->
+    <EmbeddedResource Include="Resources/evolutions.tsv" LogicalName="PKForge.Domain.evolutions.tsv" />
+  </ItemGroup>
+</Project>

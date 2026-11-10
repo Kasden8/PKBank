@@ -124,6 +124,7 @@ public static class GameUtil
             if (Gen7b.Contains(version)) return EntityContext.Gen7b;
             if (SWSH.Contains(version)) return EntityContext.Gen8;
             if (BDSP.Contains(version)) return EntityContext.Gen8b;
+            if (version is BDSPLUMI) return EntityContext.Gen8bLumi;
             if (SV.Contains(version)) return EntityContext.Gen9;
             return 0;
         }
@@ -148,6 +149,7 @@ public static class GameUtil
             GP or GE => EntityContext.Gen7b,
             PLA => EntityContext.Gen8a,
             BD or SP => EntityContext.Gen8b,
+            BDSPLUMI => EntityContext.Gen8bLumi,
             SW or SH => EntityContext.Gen8,
             SL or VL => EntityContext.Gen9,
             ZA or CP => EntityContext.Gen9a,

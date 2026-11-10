@@ -51,6 +51,12 @@ public static class SaveUtil
     private const int SIZE_G9_202 = 0xC8E; // Add 2 blocks (1 obj 0xC80, 1 bool) = 4{key}1{obj}4{len} + 4{key}1{boolT/boolF}
     private const int SIZE_G9_300 = 0x83AD;
 
+    // Pokemon Compass (S/V romhack, v2.1.x): larger than every vanilla S/V size. The
+    // size range is a pre-filter only; the SHA256 hash check in IsG9SV is the validator.
+    // Sizes observed: 0x43B063 (re-exported), 0x43BAC0 (fresh Compass save).
+    private const int SIZE_G9_COMPASS_MIN = 0x43B000;
+    private const int SIZE_G9_COMPASS_MAX = 0x43C000;
+
     private const int SIZE_G8LA = 0x136DDE;
     private const int SIZE_G8LA_1 = 0x13AD06;
 
@@ -138,7 +144,8 @@ public static class SaveUtil
         (>= SIZE_G9_DLC1_MIN1 + SIZE_G9_202 and <= SIZE_G9_DLC1_MAX1 + SIZE_G9_202 + 100) or
         (>= SIZE_G9_DLC1_MIN2 + SIZE_G9_202 and <= SIZE_G9_DLC1_MAX2 + SIZE_G9_202 + 100) or
         (>= SIZE_G9_DLC1_MIN1 + SIZE_G9_300 and <= SIZE_G9_DLC1_MAX1 + SIZE_G9_300 + 100) or
-        (>= SIZE_G9_DLC1_MIN2 + SIZE_G9_300 and <= SIZE_G9_DLC1_MAX2 + SIZE_G9_300 + 100)
+        (>= SIZE_G9_DLC1_MIN2 + SIZE_G9_300 and <= SIZE_G9_DLC1_MAX2 + SIZE_G9_300 + 100) or
+        (>= SIZE_G9_COMPASS_MIN and <= SIZE_G9_COMPASS_MAX) // Pokemon Compass v2.1.x
     ;
 
     private static bool IsSizeGen8SWSH(int length) => length is SIZE_G8SWSH
@@ -180,6 +187,7 @@ public static class SaveUtil
         if (IsG7USUM(data)) return USUM;
         if (IsG7LGPE(data)) return LGPE;
         if (IsG8SWSH(data)) return SWSH;
+        if (IsG8BDSPLumi(data)) return BDSPLumi;
         if (IsG8BDSP(data)) return BDSP;
         if (IsG8LA(data)) return LA;
         if (IsG9SV(data)) return SV;
@@ -439,6 +447,9 @@ public static class SaveUtil
         _ => false
     };
 
+    private static bool IsG8BDSPLumi(ReadOnlySpan<byte> data) => data.Length is SIZE_G8BDSP_1 or SIZE_G8BDSP_3
+        && (ReadUInt32LittleEndian(data) & 0xFFFF0000) == 0xFFFF0000;
+
     private static bool IsG8LA(ReadOnlySpan<byte> data) => data.Length is SIZE_G8LA or SIZE_G8LA_1 && SwishCrypto.GetIsHashValid(data);
     private static bool IsG8SWSH(ReadOnlySpan<byte> data) => IsSizeGen8SWSH(data.Length) && SwishCrypto.GetIsHashValid(data);
     private static bool IsG9SV(ReadOnlySpan<byte> data) => IsSizeGen9SV(data.Length) && SwishCrypto.GetIsHashValid(data);
@@ -657,6 +668,7 @@ public static class SaveUtil
 
         SWSH => new SAV8SWSH(data),
         BDSP => new SAV8BS(data),
+        BDSPLumi => new SAV8BSLuminescent(data),
         LA => new SAV8LA(data),
 
         SV => new SAV9SV(data),

@@ -40,7 +40,7 @@ public static class MoveInfo
 
         Gen7b => MoveInfo7b.PP,
         Gen8a => MoveInfo8a.PP,
-        Gen8b => MoveInfo8.PP,
+        Gen8b or Gen8bLumi => MoveInfo8.PP,
         Gen9a => MoveInfo9a.PP,
         _ => throw new ArgumentOutOfRangeException(nameof(context)),
     };
@@ -52,7 +52,7 @@ public static class MoveInfo
     {
         Gen8 => MoveInfo8.DummiedMoves,
         Gen8a => MoveInfo8a.DummiedMoves,
-        Gen8b => MoveInfo8b.DummiedMoves,
+        Gen8b or Gen8bLumi => MoveInfo8b.DummiedMoves,
         Gen9 => MoveInfo9.DummiedMoves,
         Gen9a => MoveInfo9a.DummiedMoves,
         _ => [],
@@ -185,7 +185,7 @@ public static class MoveInfo
         Gen2 when move is (int)SelfDestruct or (int)Explosion or (ushort)Mimic or (ushort)Metronome or (ushort)MirrorMove or (ushort)Transform or (ushort)SleepTalk => false,
         Gen6 when move is (int)ThousandArrows or (int)ThousandWaves or (int)LightofRuin => false,
         Gen7 or Gen8 when move is (int)LightofRuin => false,
-        Gen8b when IsDummiedMove(MoveInfo8b.DummiedMoves, move) => false,
+        Gen8b or Gen8bLumi when IsDummiedMove(MoveInfo8b.DummiedMoves, move) => false,
         Gen9 when IsDummiedMove(MoveInfo9.DummiedMoves, move) || DisallowSketch9.Contains(move) => false,
         _ => true,
     };
@@ -220,7 +220,7 @@ public static class MoveInfo
         Gen7b => Legal.MaxMoveID_7b,
         Gen8 => Legal.MaxMoveID_8a,
         Gen8a => Legal.MaxMoveID_8a,
-        Gen8b => Legal.MaxMoveID_8b,
+        Gen8b or Gen8bLumi => Legal.MaxMoveID_8b,
         Gen9 => Legal.MaxMoveID_9,
         Gen9a => Legal.MaxMoveID_9a,
         _ => -1,

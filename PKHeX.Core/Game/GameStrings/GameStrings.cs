@@ -16,7 +16,7 @@ public sealed class GameStrings : IBasicStrings
         trainingbags, trainingstage, characteristics,
         groundtiletypes, balllist, gamelist, pokeblocks, ribbons;
 
-    private readonly string[] g4items, g3coloitems, g3xditems, g3items, g2items, g1items;
+    private readonly string[] g4items, g3coloitems, g3xditems, g3items, g2items, g1items, lumiitems;
 
     // Met Locations
     public readonly LocationSet0 Gen2, Gen3, CXD;
@@ -159,6 +159,7 @@ public sealed class GameStrings : IBasicStrings
 
         g4items = [..itemlist];
         Get("mail4").CopyTo(g4items, 137);
+        lumiitems = Get("ItemsLUMI");
     }
 
     private LocationSet4 Get4([ConstantExpected] string ident)
@@ -801,6 +802,7 @@ public sealed class GameStrings : IBasicStrings
         EntityContext.Gen3 => GetItemStrings3(version),
         EntityContext.Gen4 => g4items, // mail names changed 4->5
         EntityContext.Gen8b => GetItemStrings8b(),
+        EntityContext.Gen8bLumi => lumiitems,
         EntityContext.Gen9 => GetItemStrings9(),
         EntityContext.Gen9a => GetItemStrings9a(),
         _ => itemlist,

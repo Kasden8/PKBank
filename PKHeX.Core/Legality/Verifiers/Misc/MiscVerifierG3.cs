@@ -264,13 +264,10 @@ public static class TrashByteRules3
         if (!ParseSettings.AllowGBACrossTransferXD(pk3))
             return false;
 
-        if (!IsTerminatedZero(pk3.OriginalTrainerTrash))
-            return false;
-        if (pk3.IsNicknamed)
-            return true;
-        if (!IsTerminatedZero(pk3.NicknameTrash))
-            return false;
-        return true;
+        // Colosseum/XD rewrite the OT name with zeroes after the terminator when they hand a Pokémon back to a GBA game.
+        // The Nickname is not a reliable marker: the conversion can leave stale bytes after its terminator
+        // (the legal XD Articuno "3008" sample has them), so its trash cannot rule a GameCube transfer out.
+        return IsTerminatedZero(pk3.OriginalTrainerTrash);
     }
 
     public static bool IsTerminatedZero(ReadOnlySpan<byte> data)

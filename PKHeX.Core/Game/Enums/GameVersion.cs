@@ -269,6 +269,11 @@ public enum GameVersion : byte
     /// <see cref="LG"/>
     /// </remarks>
     LGX = 57,
+
+    /// <summary>
+    /// Pokémon Luminescent Platinum (Brilliant Diamond mod).
+    /// </summary>
+    BDSPLUMI = 58,
     #endregion
 
     // The following values are not actually stored values in pk data,

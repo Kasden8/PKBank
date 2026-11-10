@@ -8,7 +8,7 @@ namespace PKHeX.Core;
 /// <summary>
 /// Generation 8 <see cref="SaveFile"/> object for <see cref="EntityContext.Gen8b"/> games.
 /// </summary>
-public sealed class SAV8BS : SaveFile, ISaveFileRevision, ITrainerStatRecord, IEventWorkArray<int>, IBoxDetailName, IBoxDetailWallpaper, IDaycareStorage, IDaycareEggState, IDaycareRandomState<ulong>
+public class SAV8BS : SaveFile, ISaveFileRevision, ITrainerStatRecord, IEventWorkArray<int>, IBoxDetailName, IBoxDetailWallpaper, IDaycareStorage, IDaycareEggState, IDaycareRandomState<ulong>
 {
     // Save Data Attributes
     protected internal override string ShortSummary => $"{OT} ({Version}) - {System.LastSavedTime}";
