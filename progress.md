@@ -11,8 +11,8 @@
 
 ## Estado actual
 
-**Fase actual:** Fase 7 — lista para release (workflow `v*`). Poképark completo y PKSM `.bnk` quedan como diferidos documentados.
-**Ãšltima actualizaciÃ³n:** 2026-11-04
+**Fase actual:** Fase 7 — release publicada (tag `v1.0.0`). **Poképark portado por completo** (simulación real + sprites PMDCollab en runtime). Diferido: PKSM `.bnk` import/export.
+**Última actualización:** 2026-11-10
 
 | Fase | Estado | Notas |
 |---|---|---|
@@ -21,27 +21,30 @@
 | Fase 1 â€” LibrerÃ­as (Domain/Engine/Infra/Chrome/AutoMod) | âœ… Completada | Ver registro y D17â€“D22 |
 | Fase 2 â€” Assets (sprites, fuentes, arte) | âœ… Completada | Ver registro; ATTRIBUTION.md |
 | Fase 3 â€” Esqueleto Avalonia | âœ… Completada | Ver registro y D24â€“D27 |
-| Fase 4 — Port de vistas | Casi cerrada (Poképark completo pendiente) |
+| Fase 4 — Port de vistas | ✅ Completada (Poképark incluido, D31) |
 
-### Pendiente preciso — Poképark completo (no portado)
+### Poképark — portado (2026-11-10)
 
-Lo que **SÍ** tiene el repo hoy (Park lite, `ParkView` + `ParkStore`):
+El dominio del parque **ya estaba portado** desde la Fase 1 (44 ficheros en `PKForge.Domain`: `ParkLife` + 24 parciales, `ParkMap`, `ParkCare`, `ParkSocial`, `ParkGoals`, `ParkAbsence`, `ParkOfflineSimulation`…; 10 painters en `PKForge.Chrome`; `ParkDaycareService` en `PKForge.Engine`; 23 ficheros de tests de dominio). Lo que faltaba era **la capa de aplicación** (PKForge.App es MAUI) y se ha portado a Avalonia:
 
-- Robo/mapa por capas (ground/objects desde `Assets/park/`), roster persistido en `%AppData%\\PKBank\\park.json` (forma `ParkPokemon` de PKForge), care (hunger/friendship) persistido, journal con plantillas de interacción (bond-lite: rondas de escenas entre residentes).
-- Interacciones: enviar desde save/Bank, feed, play, foto (texto), send away, recargar la lista.
-- Sprites **estáticos pixel** (sin animación ni frames)
+| Fichero nuevo (PKBank.App) | Qué aporta |
+|---|---|
+| `Services/Pokepark/PokeparkSpriteService.cs` | Sprites y retratos **PMDCollab** descargados en runtime (caché en disco, sin empaquetar), animaciones por pose, créditos de artistas (CC BY-NC, crédito en pantalla) |
+| `Services/Pokepark/PokeparkStore.cs` | Persistencia del parque en `%AppData%\PKBank\park\park.json` (roster, care, journal, tesoros, wilds, goals, relaciones, daycare) + álbum de fotos |
+| `Services/Pokepark/PokeparkService.cs` | Roster, candidatos (Bank + save abierta), altas/bajas, naturaleza y fecha de encuentro, fuente real de cada residente |
+| `Services/Pokepark/ParkSession.cs` | Ciclo de vida de `ParkLife`: carga, tick a 50 ms, comandos, **relaciones** (amistad/rivalidad con `ParkSocialSimulation`), objetivos diarios, vida offline (journal "mientras no estabas") |
+| `Services/Pokepark/ParkRenderer.cs` | La escena Skia: mapa por capas con **depth sorting**, cielo/lluvia/relámpagos, residentes animados, emotes, sueños, captions, efectos, agua, fuegos, banner de juegos |
+| `Services/Pokepark/ParkDaycare.cs` | Daycare: EXP por hora **escrita de vuelta** al Bank o al slot del save (con restore point) y huevos legales generados por `ParkDaycareService` |
+| `Services/Pokepark/HabitatCatalog.cs`, `PixelFont.cs` | Tipos canónicos/velocidad de especie y la fuente pixel NDS12 para los painters |
+| `Views/ParkCanvas.cs` | Control Avalonia: dibuja la escena Skia a resolución de arte y la escala, cámara con arrastre y zoom, selección de residentes |
+| `Views/ParkView.cs` | La pantalla del parque: mapa, ficha del residente (cuidados, **vínculos**), goals, journal, daycare, álbum, créditos, fotos, **juegos** (esconderse, carrera, cepillado, sparring) |
 
-**Lo que FALTA del Poképark de PKForge** (en `PKForge.App/Services/*Park*.cs` + Engine `ParkDaycareService`):
+**Verificado en la app real** (captura de pantalla): el mapa se dibuja, los residentes bajan sus sprites PMDCollab en runtime y se mueven, la ficha muestra sus necesidades que decaen en vivo, y el diario/los goals se actualizan.
 
-1. **Simulación social completa** (`ParkLife.*` íntegras: temper, amistades/rivalidades, sensaciones, daycare con EXP, escenas especiales, quests, hometown tree, celebrity events, nuzlocke del journey park).
-2. **Sprites rotativos PMDCollab** (`PokeparkSpriteService`, 349 líneas; CC BY-NC 4.0 → solo runtime con crédito; **nunca empaquetado**).
-3. **Mapas y colocación avanzada** (`ParkLayout` 1/2): ubicaciones como límites, estados offshore/trash; además **Overlays profundos** (`PokeparkEventOverlay`, `WildsFarewell`, `PokeparkJournalPage`, `PokeparkJournalView`, `PokeparkPortrait`, `PokeparkCreditsOverlay`, `PokeparkAlbumOverlay`, `PokeparkCardOverlay`, `PokeparkJournalView`) — ~10 vistas, varios miles de líneas.
-4. **Treasure/Wilds & posts especiales** (`PokeparkTreasureStore`, `PokeparkWildsStore`, treasure hunts y eventos especiales del park).
-
-Estimación honesta: semanas de trabajo sobre el port, y constituye la única pieza de Fase 4 que no es parte de "obras maestras" como el editor/bank/mystery gift.
+**Lo que NO viene del Poképark de PKForge** (no existía en el clon de referencia): nuzlocke journey park, eventos de celebrity, quests (su equivalente son los `ParkGoals` diarios) y el widget de Android (específico de MAUI/Android). Quedan diferidos para una v1.1: la **carta Skia con pestañas** (Care/Bonds/About, `ParkCardPaint`) —la ficha actual es Avalonia—, las **overlays profundas** en Skia (Album/Credits/Event/Journal pages), la liberación a los **Wilds** con reencuentros, y el **nuzlocke / encounter browser** que en PKForge vivían dentro del Park.
 | Fase 5 — Servicios PC | Completada | vinculación de saves, backups UI, QR, updates |
-| Fase 6 — Tests | Completada | suites en verde (2434 tests, 6 skipped) |
-| Fase 7 — Release (EXE portable + GitHub Releases) | Completada (build+CI) | pendiente solo: tag de release en GitHub |
+| Fase 6 — Tests | Completada | suites en verde (2443 tests, 6 skipped) |
+| Fase 7 — Release (EXE portable + GitHub Releases) | Completada | tag `v1.0.0` publicado y workflow de release ejecutándose |
 
 ### Hitos
 
@@ -52,8 +55,8 @@ Estimación honesta: semanas de trabajo sobre el port, y constituye la única pi
 | M3 | â¬œ Pendiente | Editor de saves + legalidad en vivo + Auto Legality |
 | M4 | â¬œ Pendiente | Transferencias entre generaciones + Living Dex Autopilot |
 | M5 | â¬œ Pendiente | Mystery Gift + editores por juego (ROM hacks incluidos) |
-| M6 | â¬œ Pendiente | PokÃ©park + extras (Nuzlocke, encounter browser, QR Showdown) |
-| M7 | â¬œ Pendiente | v1.0 portable en GitHub Releases |
+| M6 | 🟡 Parcial | Poképark completo + QR Showdown; faltan nuzlocke y encounter browser |
+| M7 | ✅ Completado | v1.0 portable en GitHub Releases (`v1.0.0`) |
 
 ---
 
@@ -91,6 +94,9 @@ Estimación honesta: semanas de trabajo sobre el port, y constituye la única pi
 | D30 | **Adaptación del test upstream `LegalityData.EvolutionsOrdered`** (los cherry-picks del fork aportan el contexto `Gen8bLumi`: dos teoría en `Tests/PKHeX.Core.Tests/Legality/LegalityData.cs` fallan con "Actual value was Gen8bLumi"); el test itera contextos y se excluye ese contexto explícitamente (el orden de evoluciones propio de LUMI se verifica en `LuminescentPlatinumTests` del Engine). | | 2026-11-04 |
 | D28 | **Estrategia de assets y servicio de sprites**: assets PNG **copiados junto al exe** (Content + CopyToOutputDirectory, ~14 MB) con el **mismo esquema lógico** de PKForge (Assets/sprites/b_6.png, rtwork/a_1007-4.png, alls/_ball1.png, wallpapers/, ibbons/, sprites/lumi/); Sprites/ de PKHeX no duplicados.
 | D29 | **Retiro cross-gen como objetivo (estilo OpenHome)**: el Bank conserva los **bytes prístinos** de cada entidad (formato original); retirar convierte con `EntityConverter` (con avisos por pérdida) y muestra preview+legality en fases posteriores. Sin "mover o perder": Bank es fuente intacta. | Alineación con la petición del usuario (mover entre cualquier generación cuando es físicamente posible) y con PKForge Engine (CrossFormatConverter + previewabilidad). | 2026-11-04 |
+| D31 | **Poképark: portar el motor, reescribir la capa de presentación**. El dominio del parque ya estaba portado (Fase 1), así que en Fase 4 solo se escribió la capa App: sesión (`ParkSession`) sobre `ParkLife`, render Skia en un `Control` de Avalonia (`ParkCanvas`) en vez de `SKCanvasView` de MAUI, y UI Avalonia normal para paneles/ficha/journal/guardería (en vez de overlays Skia de PKForge). **Sprites PMDCollab solo en runtime** con caché en `%LocalAppData%\PKBank\cache\pokepark-pmd-v1` y créditos visibles (D13/D23). **El lite (`ParkStore` + `ParkView` estático) se elimina** para no mantener dos modelos de datos del parque. | Máxima fidelidad de simulación reutilizando el dominio ya probado, con el menor coste de UI; evita duplicar la persistencia (`park.json` viejo → `park\park.json`). | 2026-11-10 |
+| D32 | **El parque escribe de verdad en el destino**: la guardería devuelve la EXP al Pokémon en el Bank o en el slot del save (con restore point previo), y la cría genera un huevo legal vía `ParkDaycareService`. El journal, tesoros, wilds y goals se persisten junto al roster. | Un parque de juguete (sin escritura) no cumple la promesa del Bank; el dominio ya tenía `ParkDaycareService` para eso. | 2026-11-10 |
+| D33 | **Dos bugs de DI preexistentes corregidos** al cablear el parque: `ISaveFileAccess` no estaba registrado (la vista SAVE EDITOR crasheaba al abrirse) → nuevo `Services/LocalFileAccess.cs`; y `SaveEngine` (concreto) no estaba registrado → `AddSingleton<SaveEngine>()` + alias `ISaveEngine`. | Se detectaron al arrancar todas las vistas para verificar el port; no tienen relación con el parque pero bloqueaban la pantalla de editor. | 2026-11-10 |
 
 ---
 
@@ -180,3 +186,5 @@ pkbank/
 | 2026-11-04 | **Fase 6 (Tests) completada** | Suite completa en verde tras adaptar `LegalityData` (D30 — contexto fork Gen8bLumi): **Core 605 OK/1 skip; Engine 959 OK/5 skip (D22); Domain 860/860; App Smoke 10/10** = 2434 superadas, 6 omitidas, 0 fallos. Build Release 0 errores/warnings verificado vía solución completa. Fase 7 (Release) pendiente. |
 | 2026-11-04 | **Fase 4 — Slice 6 (Poképark lite) entregado** | **ParkStore** (roster persistido %AppData%\PKBank\park.json con la misma forma que PKForge), **ParkView** (mapa ground+objects, residentes con sprites pixel, enviar desde save/Bank, feed/play, journal con escenas lite por plantilla estilo ParkLore). En espera: sprites rotativos PMDCollab runtime y la simulación social completa; ajustes por juego del Core. **Build Release 0 errores/warnings**; app verificada arrancando. |
 | 2026-11-04 | **Fase 7 (Release) completada (lado artefacto/CI)** | Portable self-contained single-file verificado localmente: **PKBank.exe corre sin runtime**; zip aprox. **67,7 MB** (`PKBank.exe` 137 MB self-contained + `Assets/` 14,4 MB; PDB eliminados). **`docs/BUILD.md`** creado. **Workflow `release.yml`** (tag `v*` → publish + zip + release con notas). Version `1.0.0` en csproj. **Build 0/0 verificado**; Pendiente solo: publicar el primer tag en GitHub para materializar el release. |
+| 2026-11-10 | **Release `v1.0.0` publicado** | Commit `606060f feat(pkbank): build the PKBank PC app (Avalonia port of PKForge)` + `ec7d5a8e5 ci: check out submodules in the build workflow` en `pc-port`; merge a `master` (`901e53904`); tag `v1.0.0` subido → workflow `release.yml` en marcha (run `42915116912`). `progress.md` descargado del repo. |
+| 2026-11-10 | **Poképark — port completo entregado (D31–D33)** | El dominio del parque ya venía portado desde la Fase 1; se escribió la **capa App**: `PokeparkSpriteService` (PMDCollab en runtime + caché + créditos), `PokeparkStore` (persistencia en `%AppData%\PKBank\park\park.json`: roster, care, journal, tesoros, wilds, goals, relaciones, daycare, álbum), `PokeparkService` (roster y candidatos Bank/save), `ParkSession` (`ParkLife` + tick 50 ms + relaciones + goals + vida offline), `ParkRenderer` (escena Skia: depth sorting, día/noche, lluvia, residentes animados, emotes, captions, banner de juegos), `ParkDaycare` (EXP de vuelta al Bank/save + huevos legales), `HabitatCatalog`, `PixelFont`; `ParkCanvas` (Control Avalonia con cámara/zoom/selección) y `ParkView` reescrito (ficha con necesidades y vínculos, metas, diario, guardería con breeding, álbum, créditos, fotos, juegos). **Eliminado el lite `ParkStore`**. Deep link `--view <tag>` añadido para abrir vistas concretas. **Corregidos dos bugs de DI** (`ISaveFileAccess`, `SaveEngine`) que rompían la vista SAVE EDITOR. **Verificación**: build solución completa `-warnaserror` → 0 errores/0 warnings; suite **2443 superadas / 6 omitidas / 0 fallos** (Core 605/1, Domain 860, Engine 959/5, App Smoke 19 con 9 tests nuevos en `ParkFlowTests.cs`); las 7 vistas abren sin crash; inspección visual por captura: mapa, sprites PMDCollab descargados en runtime, retrato, necesidades decaendo, bonds, juegos y guardería. |

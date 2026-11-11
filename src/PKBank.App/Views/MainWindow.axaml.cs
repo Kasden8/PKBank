@@ -9,6 +9,7 @@ using Avalonia.Media.Imaging;
 using Microsoft.Extensions.DependencyInjection;
 using PKBank.App.Navigation;
 using PKBank.App.Services;
+using PKBank.App.Services.Pokepark;
 using PKBank.App.Theme;
 using PKBank.App.ViewModels;
 using PKBank.App.Views;
@@ -146,6 +147,10 @@ public partial class MainWindow : Window
 
     private void OnViewChanged(Control view) => Host.Content = view;
 
+    /// <summary>Opens a rail view by its tag ("home", "park", "bank", ...). Used by the
+    /// <c>--view</c> command line and by deep links.</summary>
+    public void ShowView(string tag) => Navigate(tag);
+
     private void Navigate(string tag)
     {
         _currentRail = tag;
@@ -193,8 +198,11 @@ public partial class MainWindow : Window
                     new SaveEngine());
                 parkBankVm.CurrentSaveProvider = () => _currentSaveEditorVm;
                 _navigator.Show(new ParkView(
-                    App.Services.GetRequiredService<ParkStore>(),
-                    App.Services.GetRequiredService<SpriteService>(),
+                    App.Services.GetRequiredService<PokeparkService>(),
+                    App.Services.GetRequiredService<ParkSession>(),
+                    App.Services.GetRequiredService<ParkRenderer>(),
+                    App.Services.GetRequiredService<PokeparkSpriteService>(),
+                    App.Services.GetRequiredService<ParkDaycare>(),
                     parkBankVm,
                     _currentSaveEditorVm));
                 break;
