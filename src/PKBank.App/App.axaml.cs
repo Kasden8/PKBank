@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using PKBank.App.Services;
+using PKBank.App.Services.Pokepark;
 using PKForge.Domain;
 using PKForge.Engine;
 using PKForge.Infrastructure;
@@ -32,6 +33,18 @@ public sealed class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new Views.MainWindow();
+            // A deep link: "PKBank.exe --view park" opens straight into that screen.
+            var args = desktop.Args ?? [];
+            for (var i = 0; i < args.Length - 1; i++)
+            {
+                if (!args[i].Equals("--view", StringComparison.OrdinalIgnoreCase)) continue;
+                if (desktop.MainWindow is Views.MainWindow window)
+                {
+                    window.ShowView(args[i + 1]);
+                    AppLog.Info("app", "Opened view " + args[i + 1]);
+                }
+                break;
+            }
         }
         base.OnFrameworkInitializationCompleted();
     }
@@ -41,7 +54,8 @@ public sealed class App : Application
         var dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PKBank");
         var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
 
-        services.AddSingleton<ISaveEngine, SaveEngine>();
+        services.AddSingleton<SaveEngine>();
+        services.AddSingleton<ISaveEngine>(provider => provider.GetRequiredService<SaveEngine>());
         services.AddSingleton<IGameDataService, GameDataService>();
         services.AddSingleton<ILegalizerService, LegalizerService>();
         services.AddSingleton<IEventDatabaseService, EventDatabaseService>();
@@ -61,6 +75,7 @@ public sealed class App : Application
         });
         services.AddSingleton(_ => new InjectedGiftHistory(Path.Combine(dataDir, "injected-gifts.json")));
         services.AddSingleton<ISaveIdentityStore>(_ => new JsonSaveIdentityStore(Path.Combine(dataDir, "save-identities.json")));
+        services.AddSingleton<ISaveFileAccess, LocalFileAccess>();
         services.AddSingleton<ISafeSaveWriter, SafeSaveWriter>();
         services.AddSingleton<ILegalityService, LegalityService>();
         services.AddSingleton<ILegalityAssistService>(LegalityAssistService.Shared);
@@ -70,7 +85,17 @@ public sealed class App : Application
         services.AddSingleton<IEvolutionService, EvolutionService>();
 
         services.AddSingleton<SpriteService>();
-        services.AddSingleton<ParkStore>();
+        services.AddSingleton<PokeparkSpriteService>();
+        services.AddSingleton<Services.Pokepark.PokeparkService>(provider => new Services.Pokepark.PokeparkService(
+            provider.GetRequiredService<IBankService>(),
+            provider.GetRequiredService<IGameDataService>()));
+        services.AddSingleton<Services.Pokepark.ParkSession>(provider => new Services.Pokepark.ParkSession(
+            provider.GetRequiredService<Services.Pokepark.PokeparkService>()));
+        services.AddSingleton<Services.Pokepark.ParkRenderer>(provider => new Services.Pokepark.ParkRenderer(
+            provider.GetRequiredService<PokeparkSpriteService>()));
+        services.AddSingleton<Services.Pokepark.ParkDaycare>(provider => new Services.Pokepark.ParkDaycare(
+            provider.GetRequiredService<Services.Pokepark.PokeparkService>(),
+            provider.GetRequiredService<IBankService>()));
         services.AddSingleton<Navigation.Navigator>();
         services.AddSingleton<AppUpdateService>();
         return services.BuildServiceProvider();

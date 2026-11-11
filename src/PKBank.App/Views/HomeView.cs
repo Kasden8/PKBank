@@ -7,6 +7,7 @@ using Avalonia.Platform;
 using Microsoft.Extensions.DependencyInjection;
 using PKBank.App.Navigation;
 using PKBank.App.Services;
+using PKBank.App.Services.Pokepark;
 using PKBank.App.Theme;
 using PKBank.App.ViewModels;
 using PKForge.Domain;
@@ -136,8 +137,11 @@ public sealed class HomeView : UserControl
                 "The full Mystery Gift database, browsed offline — wonder cards ready to hand out.",
                 "PHASE 5"),
             "park" => new ParkView(
-                App.Services.GetRequiredService<ParkStore>(),
-                App.Services.GetRequiredService<SpriteService>(),
+                App.Services.GetRequiredService<PokeparkService>(),
+                App.Services.GetRequiredService<ParkSession>(),
+                App.Services.GetRequiredService<ParkRenderer>(),
+                App.Services.GetRequiredService<PokeparkSpriteService>(),
+                App.Services.GetRequiredService<ParkDaycare>(),
                 new BankViewModel(
                     App.Services.GetRequiredService<IBankService>(),
                     new SaveEngine()),
