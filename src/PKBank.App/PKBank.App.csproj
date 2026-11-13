@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Resources\Events\**" />
     <EmbeddedResource Remove="Resources\**" />
   </ItemGroup>
 
