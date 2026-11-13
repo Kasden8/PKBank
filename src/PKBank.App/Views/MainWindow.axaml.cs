@@ -151,6 +151,12 @@ public partial class MainWindow : Window
     /// <c>--view</c> command line and by deep links.</summary>
     public void ShowView(string tag) => Navigate(tag);
 
+    private string? _openSavePath;
+
+    /// <summary>Queues a save file (from the <c>--open</c> deep link) to load as soon as the
+    /// save editor comes up.</summary>
+    public void OpenSaveOnArrival(string path) => _openSavePath = path;
+
     private void Navigate(string tag)
     {
         _currentRail = tag;
@@ -163,6 +169,20 @@ public partial class MainWindow : Window
                 text.Foreground = PkChrome.Brush(selected ? UiTokens.Bright : UiTokens.InkSoft);
         }
 
+        try
+        {
+            ShowTag(tag);
+        }
+        catch (Exception ex)
+        {
+            // A view that fails to come up must never take the whole app down: log it and show why.
+            AppLog.Error("app", $"View '{tag}' failed to open", ex);
+            _navigator.Show(new ErrorView(tag, ex));
+        }
+    }
+
+    private void ShowTag(string tag)
+    {
         switch (tag)
         {
             case "home":
@@ -174,9 +194,15 @@ public partial class MainWindow : Window
                     App.Services.GetRequiredService<ISafeSaveWriter>(),
                     App.Services.GetRequiredService<IBankService>(),
                     App.Services.GetRequiredService<SaveEngine>());
-                _navigator.Show(new SavesView(
+                var savesView = new SavesView(
                     _currentSaveEditorVm,
-                    App.Services.GetRequiredService<SpriteService>()));
+                    App.Services.GetRequiredService<SpriteService>());
+                _navigator.Show(savesView);
+                if (_openSavePath is { } openPath)
+                {
+                    _openSavePath = null;
+                    _ = savesView.OpenPathAsync(openPath);
+                }
                 break;
             case "bank":
                 var bankVm = new BankViewModel(

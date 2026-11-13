@@ -207,6 +207,9 @@ public static class UiTokens
     public static Color RowStripe => Themed(WithAlpha(As(Pksm.PaperShade), 0x90));
     public static Color Divider => Themed(WithAlpha(As(Pksm.PaperEdge), 0x70));
     public static Color Well => Themed(As(Pksm.PaperShade));                                 // recessed field / inset
+    public static Color WellDeep => Themed(As(Pksm.LogoVoid));                               // the storage well (box area)
+    public static Color SlotFill => Themed(WithAlpha(As(Pksm.LogoVoid), 0x38));              // one storage slot's pane
+    public static Color SlotEdge => Themed(WithAlpha(As(Pksm.PaperEdge), 0x45));             // one storage slot's frame
 
     // Toned per-context accents (the summary bands): quiet surfaces, never neon edges.
     public static readonly Color AccentInfo = As(Pksm.BandInfo);

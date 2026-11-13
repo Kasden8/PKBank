@@ -33,17 +33,30 @@ public sealed class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new Views.MainWindow();
-            // A deep link: "PKBank.exe --view park" opens straight into that screen.
+            // Deep links: "PKBank.exe --view park" opens straight into that screen;
+            // "PKBank.exe --open <save>" opens that save file in the editor right away.
             var args = desktop.Args ?? [];
             for (var i = 0; i < args.Length - 1; i++)
             {
-                if (!args[i].Equals("--view", StringComparison.OrdinalIgnoreCase)) continue;
-                if (desktop.MainWindow is Views.MainWindow window)
+                if (args[i].Equals("--view", StringComparison.OrdinalIgnoreCase))
                 {
-                    window.ShowView(args[i + 1]);
-                    AppLog.Info("app", "Opened view " + args[i + 1]);
+                    if (desktop.MainWindow is Views.MainWindow window)
+                    {
+                        window.ShowView(args[i + 1]);
+                        AppLog.Info("app", "Opened view " + args[i + 1]);
+                    }
+                    break;
                 }
-                break;
+                if (args[i].Equals("--open", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (desktop.MainWindow is Views.MainWindow window && File.Exists(args[i + 1]))
+                    {
+                        window.OpenSaveOnArrival(args[i + 1]);
+                        window.ShowView("saves");
+                        AppLog.Info("app", "Opening save from command line: " + args[i + 1]);
+                    }
+                    break;
+                }
             }
         }
         base.OnFrameworkInitializationCompleted();
