@@ -187,4 +187,17 @@ public sealed class SavesView : UserControl
         var navigator = App.Services.GetService(typeof(Navigation.Navigator)) as Navigation.Navigator;
         navigator?.Show(new SaveEditorView(_vm, _sprites));
     }
+
+    /// <summary>Loads a save whose path arrived from the command line and jumps into the editor.</summary>
+    public async Task OpenPathAsync(string path)
+    {
+        var error = await _vm.LoadAsync(path);
+        if (error is not null)
+        {
+            _status.Text = error;
+            return;
+        }
+        var navigator = App.Services.GetService(typeof(Navigation.Navigator)) as Navigation.Navigator;
+        navigator?.Show(new SaveEditorView(_vm, _sprites));
+    }
 }

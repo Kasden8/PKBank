@@ -22,7 +22,7 @@ namespace PKBank.App.Views;
 /// </summary>
 public sealed class SaveEditorView : UserControl
 {
-    private const int CellSize = 108;
+    private const int CellSize = 96;
     private const int Columns = 6;
 
     private readonly SaveEditorViewModel _vm;
@@ -93,11 +93,11 @@ public sealed class SaveEditorView : UserControl
         var left = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Top };
         left.Children.Add(LevelLabel("PARTY", reduced: true));
         _partyCanvas = new Canvas { Width = Columns * CellSize, Height = CellSize, Background = Brushes.Transparent };
-        left.Children.Add(_partyCanvas);
+        left.Children.Add(WellPanel(_partyCanvas));
         left.Children.Add(LevelLabel("BOX"));
         left.Children.Add(BoxRow());
         _boxCanvas = new Canvas { Width = Columns * CellSize, Height = 5 * CellSize, Background = Brushes.Transparent };
-        left.Children.Add(_boxCanvas);
+        left.Children.Add(WellPanel(_boxCanvas));
         left.Children.Add(HorizontalDivider());
 
         _summaryHost = new Border
@@ -173,6 +173,17 @@ public sealed class SaveEditorView : UserControl
         Margin = new Thickness(0, 4, 0, 0),
     };
 
+    /// <summary>The storage well: a dark rounded panel with a thin pale edge, after PKForge's StoragePaint.</summary>
+    private static Control WellPanel(Canvas canvas) => new Border
+    {
+        Child = canvas,
+        Padding = new Thickness(10),
+        CornerRadius = new CornerRadius(10),
+        Background = PkChrome.Brush(UiTokens.WellDeep),
+        BorderBrush = PkChrome.Brush(UiTokens.Rim),
+        BorderThickness = new Thickness(1.2),
+    };
+
     private Control BoxRow()
     {
         var back = new Button { Content = "<" };
@@ -212,8 +223,8 @@ public sealed class SaveEditorView : UserControl
             {
                 Width = CellSize,
                 Height = CellSize,
-                Background = Brushes.Transparent,
-                BorderBrush = Brushes.Transparent,
+                Background = PkChrome.Brush(UiTokens.SlotFill),
+                BorderBrush = PkChrome.Brush(UiTokens.SlotEdge),
                 BorderThickness = new Thickness(1.4),
                 CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(4),
@@ -282,8 +293,15 @@ public sealed class SaveEditorView : UserControl
         }
     }
 
-    private PKM ReadSlot((bool IsParty, int Box, int Slot) cell) =>
-        cell.IsParty ? _vm.PartySlot(cell.Slot) : _vm.Slot(_vm.BoxIndex, cell.Slot);
+    private PKM ReadSlot((bool IsParty, int Box, int Slot) cell)
+    {
+        if (!SlotExists(cell)) return _vm.Save!.BlankPKM; // a slot the game does not keep reads as empty
+        return cell.IsParty ? _vm.PartySlot(cell.Slot) : _vm.Slot(_vm.BoxIndex, cell.Slot);
+    }
+
+    /// <summary>True when the save actually has this slot: some games keep 20-slot boxes (Gen 1-2).</summary>
+    private bool SlotExists((bool IsParty, int Box, int Slot) cell) =>
+        _vm.Save is null || (cell.IsParty ? cell.Slot < 6 : cell.Slot < _vm.Save.BoxSlotCount);
 
     private static int FormArgumentOf(PKM pk) => (int)((pk as IFormArgument)?.FormArgument ?? 0);
 
@@ -332,8 +350,12 @@ public sealed class SaveEditorView : UserControl
         _dragFrom = null;
         if (idx is { } i && i != from.Slot && !false)
         {
-            // Within-region move for the slice; cross-region (party <-> box) arrives with the partner screens.
-            _vm.Move(from.Box, from.Slot, from.IsParty, from.Box, i, from.IsParty);
+            var target = (from.IsParty, from.Box, i);
+            if (SlotExists(target))
+            {
+                // Within-region move for the slice; cross-region (party <-> box) arrives with the partner screens.
+                _vm.Move(from.Box, from.Slot, from.IsParty, from.Box, i, from.IsParty);
+            }
         }
         RefreshAll();
     }
@@ -387,8 +409,8 @@ public sealed class SaveEditorView : UserControl
         foreach (var (cell, border) in _cells)
         {
             var selected = _selected is { } sel && sel == cell;
-            border.BorderBrush = selected ? PkChrome.Brush(UiTokens.Bright) : Brushes.Transparent;
-            border.Background = selected ? PkChrome.Brush(UiTokens.RowStripe) : Brushes.Transparent;
+            border.BorderBrush = PkChrome.Brush(selected ? UiTokens.Bright : UiTokens.SlotEdge);
+            border.Background = PkChrome.Brush(selected ? UiTokens.RowStripe : UiTokens.SlotFill);
         }
     }
 
@@ -426,6 +448,8 @@ public sealed class SaveEditorView : UserControl
         }
         foreach (var cell in cells)
         {
+            _cells[cell].IsVisible = SlotExists(cell);
+            if (!_cells[cell].IsVisible) { _cells[cell].Child = null; continue; }
             var pk = cell.IsParty ? _vm.PartySlot(cell.Slot) : _vm.Slot(_vm.BoxIndex, cell.Slot);
             _cells[cell].Child = CellContent(pk, cell);
         }
@@ -465,7 +489,7 @@ public sealed class SaveEditorView : UserControl
         };
         Control spriteControl = sprite is null
             ? new TextBlock { Text = "?", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
-            : new Image { Source = sprite, Stretch = Stretch.Uniform, Height = 84 };
+            : new Image { Source = sprite, Stretch = Stretch.Uniform, Height = 68 };
 
         var stack = new StackPanel { Spacing = 0, Children = { spriteControl, text } };
         var grid = new Grid { Children = { stack } };
@@ -507,6 +531,7 @@ public sealed class SaveEditorView : UserControl
         if (_vm.Save is null) return;
         foreach (var cell in AllBoxCells)
         {
+            if (!SlotExists(cell)) continue;
             var pk = _vm.Slot(_vm.BoxIndex, cell.Slot);
             if (pk.Species == 0) continue;
             var dot = _dots[cell];
