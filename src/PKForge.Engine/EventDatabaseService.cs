@@ -19,23 +19,35 @@ public sealed class EventDatabaseService : IEventDatabaseService
     /// album can show English event names, languages and regions. PKHeX's local tables keep
     /// only the card bytes; this keeps the file names beside them, keyed by content.
     /// </summary>
-    public static void IndexArchive(string folder)
+    public static void IndexArchive(string folder) => IndexArchive([folder]);
+
+    /// <summary>
+    /// Remembers which gallery file every card in <paramref name="folders"/> came from, so the
+    /// album can show English event names, languages and regions. PKHeX's local tables keep
+    /// only the card bytes; this keeps the file names beside them, keyed by content. All
+    /// previously loaded folders must be passed again on every call: the index is rebuilt
+    /// from scratch, so a single-folder refresh would forget the others.
+    /// </summary>
+    public static void IndexArchive(params ReadOnlySpan<string> folders)
     {
         Sources.Clear();
-        if (!Directory.Exists(folder)) return;
-        foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+        foreach (var folder in folders)
         {
-            try
+            if (!Directory.Exists(folder)) continue;
+            foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
             {
-                var info = new FileInfo(file);
-                if (!MysteryGift.IsMysteryGift(info.Length)) continue;
-                if (MysteryGift.GetMysteryGift(File.ReadAllBytes(file), info.Extension) is not { } gift) continue;
-                if (ContentKey(gift) is { } key)
-                    Sources.TryAdd(key, Path.GetRelativePath(folder, file).Replace('\\', '/'));
-            }
-            catch (Exception e) when (e is not OutOfMemoryException)
-            {
-                // One unreadable file never costs the album its other names.
+                try
+                {
+                    var info = new FileInfo(file);
+                    if (!MysteryGift.IsMysteryGift(info.Length)) continue;
+                    if (MysteryGift.GetMysteryGift(File.ReadAllBytes(file), info.Extension) is not { } gift) continue;
+                    if (ContentKey(gift) is { } key)
+                        Sources.TryAdd(key, Path.GetRelativePath(folder, file).Replace('\\', '/'));
+                }
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    // One unreadable file never costs the album its other names.
+                }
             }
         }
     }

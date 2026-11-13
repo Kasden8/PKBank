@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -15,24 +15,14 @@ namespace PKBank.App.Smoke.Tests;
 
 /// <summary>
 /// The click path of the save editor: selecting an entity must build the summary (and the
-/// Pokémon editor) without ever throwing, no matter how strange the entity's fields are.
+/// Pok�mon editor) without ever throwing, no matter how strange the entity's fields are.
 /// A real save's data can be anything the game (or an external editor) put there, so the
 /// view degrades to a safe value instead of taking the process down.
 /// </summary>
 public sealed class EditorInteractionTests : IDisposable
 {
-    private static bool _platformReady;
-
     /// <summary>The view decodes sprites, so the Avalonia platform must exist (headless, Skia-backed).</summary>
-    private static void EnsurePlatform()
-    {
-        if (_platformReady) return;
-        _platformReady = true;
-        AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions())
-            .SetupWithoutStarting();
-    }
+    private static void EnsurePlatform() => HeadlessTestPlatform.Ensure();
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "pkbank-edit-" + Guid.NewGuid().ToString("N"));
     private readonly string _savePath;

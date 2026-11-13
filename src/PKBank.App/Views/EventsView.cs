@@ -25,6 +25,7 @@ public sealed class EventsView : UserControl
     private readonly TextBox _search = new() { MinWidth = 240, PlaceholderText = "Search gift title / species…" };
     private readonly StackPanel _list = new() { Spacing = 6 };
     private IReadOnlyList<EventGift> _all = [];
+    private SaveFile? _albumSource;
 
     public EventsView(SaveEditorViewModel? saveEditorVm, BankViewModel bank, IEventDatabaseService events, SpriteService sprites)
     {
@@ -55,11 +56,15 @@ public sealed class EventsView : UserControl
             return;
         }
 
-        if (_all.Count == 0)
+        if (!ReferenceEquals(_saveEditorVm.Save, _albumSource))
         {
+            // The save changed: load its generation's gallery (a no-op when already
+            // loaded) and rebuild the album. This also re-serves a genuinely empty album.
+            EventArchive.EnsureLoaded(_saveEditorVm.Save.Generation);
             var bytes = _saveEditorVm.Save.Write(BinaryExportSetting.None).ToArray();
             using var session = new SaveEngineSession(bytes);
             _all = _events.GetGifts(session);
+            _albumSource = _saveEditorVm.Save;
         }
 
         var needle = (_search.Text ?? "").Trim().ToLowerInvariant();
