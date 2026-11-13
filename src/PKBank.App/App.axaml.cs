@@ -20,6 +20,13 @@ public sealed class App : Application
     {
         Services = BuildServices();
         AppLog.Info("app", "Services wired");
+        // Last-resort net: an exception that escapes a handler must never kill the session.
+        // It is logged (the user can read pkbank.log) and the UI keeps running.
+        Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (_, e) =>
+        {
+            AppLog.Error("app", "Unhandled UI exception", e.Exception);
+            e.Handled = true;
+        };
         // Release check (best-effort, never blocks startup on the network).
         _ = Task.Run(async () =>
         {

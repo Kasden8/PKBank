@@ -25,7 +25,7 @@ public sealed class SpriteService
     private static Bitmap? DecodeFile(string path)
     {
         try { return new Bitmap(path); }
-        catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException) { return null; }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { return null; }
     }
 
     private void Cache(string key, Bitmap? bitmap)
