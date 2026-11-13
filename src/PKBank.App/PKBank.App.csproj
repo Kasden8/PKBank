@@ -28,6 +28,10 @@
     <EmbeddedResource Remove="Resources\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="PKBank.App.Smoke.Tests" />
+  </ItemGroup>
+
   <!-- Bundled art: copied (not embedded) next to the exe. Same logical layout as PKForge's MauiAsset rules. -->
   <ItemGroup>
     <Content Include="..\..\PKHeX.Drawing.PokeSprite\Resources\img\Big Pokemon Sprites\*.png" Link="Assets\sprites\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

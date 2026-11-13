@@ -247,7 +247,7 @@ public sealed class SaveEditorView : UserControl
         canvas.PointerExited += (_, _) => CancelDrag(canvas);
     }
 
-    private void OnCellPressed((bool IsParty, int Box, int Slot) cell, PointerEventArgs e)
+    internal void OnCellPressed((bool IsParty, int Box, int Slot) cell, PointerEventArgs e)
     {
         if (_vm.Save is null) return;
         var pk = ReadSlot(cell);
@@ -605,8 +605,6 @@ public sealed class SaveEditorView : UserControl
             OpenEditor(pkNow, selected);
         };
         qrButton.Click += (_, _) => ShowQr();
-        bankRow.Children.Add(editButton);
-        bankRow.Children.Add(qrButton);
         send.Click += async (_, _) =>
         {
             var message = await _vm.DepositSelectedAsync(selected.IsParty, selected.Box, selected.Slot, move: true);
@@ -619,9 +617,10 @@ public sealed class SaveEditorView : UserControl
             _statusLabel.Text = message;
             RefreshAll();
         };
+        bankRow.Children.Add(editButton);
+        bankRow.Children.Add(qrButton);
         bankRow.Children.Add(send);
         bankRow.Children.Add(copy);
-        bankRow.Children.Add(editButton);
         stack.Children.Add(bankRow);
         return stack;
     }
