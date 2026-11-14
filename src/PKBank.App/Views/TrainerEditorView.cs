@@ -39,10 +39,10 @@ public sealed class TrainerEditorView : UserControl
             return root;
         }
 
-        _name = Field("Trainer name", save.OT);
-        _tid = Field("TID", save.TrainerTID7.ToString());
-        _sid = Field("SID", save.TrainerSID7.ToString());
-        _money = Numeric("Money", (int)save.Money, 0, 99999999);
+        _name = TextBoxControl(save.OT);
+        _tid = TextBoxControl(save.TrainerTID7.ToString());
+        _sid = TextBoxControl(save.TrainerSID7.ToString());
+        _money = NumericControl((int)save.Money, 0, 99999999);
         _status = PkChrome.BodyLabel(save.OT + " · " + save.TrainerIDDisplayFormat, 12, UiTokens.InkSoft);
 
         var panel = new Border
@@ -56,7 +56,14 @@ public sealed class TrainerEditorView : UserControl
             Child = new StackPanel
             {
                 Spacing = 10,
-                Children = { _name, _tid, _sid, _money, _status },
+                Children =
+                {
+                    LabeledField("Trainer name", _name),
+                    LabeledField("TID", _tid),
+                    LabeledField("SID", _sid),
+                    LabeledField("Money", _money),
+                    _status,
+                },
             },
         };
         root.Children.Add(panel);
@@ -68,29 +75,25 @@ public sealed class TrainerEditorView : UserControl
         return root;
     }
 
-    private static TextBox Field(string caption, string value)
+    /// <summary>A caption plus the field control, laid out as one row. Same rule as the
+    /// Pokémon editor: the control is created separately and kept in a field for Apply —
+    /// returning the control while it stayed inside the label grid broke the whole view.</summary>
+    private static Grid LabeledField(string caption, Control control)
     {
-        var control = new TextBox { Text = value, HorizontalAlignment = HorizontalAlignment.Stretch };
         var grid = new Grid
         {
             ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
             Children = { PkChrome.PixelLabel(caption, 12, UiTokens.InkSoft), control },
         };
         Grid.SetColumn(control, 1);
-        return control;
+        return grid;
     }
 
-    private static NumericUpDown Numeric(string caption, int value, int min, int max)
-    {
-        var control = new NumericUpDown { Value = value, Minimum = min, Maximum = max, ClipValueToMinMax = true, HorizontalAlignment = HorizontalAlignment.Stretch };
-        var grid = new Grid
-        {
-            ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
-            Children = { PkChrome.PixelLabel(caption, 12, UiTokens.InkSoft), control },
-        };
-        Grid.SetColumn(control, 1);
-        return control;
-    }
+    private static TextBox TextBoxControl(string value) =>
+        new() { Text = value, HorizontalAlignment = HorizontalAlignment.Stretch };
+
+    private static NumericUpDown NumericControl(int value, int min, int max) =>
+        new() { Value = value, Minimum = min, Maximum = max, ClipValueToMinMax = true, HorizontalAlignment = HorizontalAlignment.Stretch };
 
     private void Apply()
     {

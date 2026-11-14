@@ -134,15 +134,15 @@ public sealed class PkmEditorView : UserControl
     private Control BasicTab()
     {
         var stack = new StackPanel { Spacing = 8, Margin = new Thickness(10) };
-        _nickBox = TextBoxField("Nickname", _entity.Nickname);
-        _levelBox = NumericField("Level", _entity.CurrentLevel, 1, 100);
-        _formBox = NumericField("Form", _entity.Form, 0, 255);
-        _genderBox = ComboBoxField("Gender", ["Male", "Female", "—"], _entity.Gender);
+        _nickBox = TextBoxControl(_entity.Nickname);
+        _levelBox = NumericControl(_entity.CurrentLevel, 1, 100);
+        _formBox = NumericControl(_entity.Form, 0, 255);
+        _genderBox = ComboControl(["Male", "Female", "—"], _entity.Gender);
         var shiny = new CheckBox { Content = "Shiny", IsChecked = _entity.IsShiny, IsEnabled = false };
-        stack.Children.Add(_nickBox);
-        stack.Children.Add(_levelBox);
-        stack.Children.Add(_formBox);
-        stack.Children.Add(_genderBox);
+        stack.Children.Add(LabeledField("Nickname", _nickBox));
+        stack.Children.Add(LabeledField("Level", _levelBox));
+        stack.Children.Add(LabeledField("Form", _formBox));
+        stack.Children.Add(LabeledField("Gender", _genderBox));
         stack.Children.Add(shiny);
         return stack;
     }
@@ -150,22 +150,25 @@ public sealed class PkmEditorView : UserControl
     private Control MovesTab()
     {
         var stack = new StackPanel { Spacing = 8, Margin = new Thickness(10) };
-        _natureBox = ComboBoxField("Nature", NatureNames(), (int)_entity.Nature);
-        _abilityBox = ComboBoxField("Ability", NameList(_strings.Ability), _entity.Ability);
-        _ballBox = ComboBoxField("Ball", NameList(_strings.balllist), _entity.Ball);
-        _itemBox = ComboBoxField("Held item", NameList(_strings.Item), _entity.HeldItem);
+        _natureBox = ComboControl(NatureNames(), (int)_entity.Nature);
+        _abilityBox = ComboControl(NameList(_strings.Ability), _entity.Ability);
+        _ballBox = ComboControl(NameList(_strings.balllist), _entity.Ball);
+        _itemBox = ComboControl(NameList(_strings.Item), _entity.HeldItem);
         _moves =
         [
-            ComboBoxField("Move 1", NameList(_strings.Move), _entity.Move1),
-            ComboBoxField("Move 2", NameList(_strings.Move), _entity.Move2),
-            ComboBoxField("Move 3", NameList(_strings.Move), _entity.Move3),
-            ComboBoxField("Move 4", NameList(_strings.Move), _entity.Move4),
+            ComboControl(NameList(_strings.Move), _entity.Move1),
+            ComboControl(NameList(_strings.Move), _entity.Move2),
+            ComboControl(NameList(_strings.Move), _entity.Move3),
+            ComboControl(NameList(_strings.Move), _entity.Move4),
         ];
-        stack.Children.Add(_natureBox);
-        stack.Children.Add(_abilityBox);
-        stack.Children.Add(_ballBox);
-        stack.Children.Add(_itemBox);
-        foreach (var move in _moves) stack.Children.Add(move);
+        stack.Children.Add(LabeledField("Nature", _natureBox));
+        stack.Children.Add(LabeledField("Ability", _abilityBox));
+        stack.Children.Add(LabeledField("Ball", _ballBox));
+        stack.Children.Add(LabeledField("Held item", _itemBox));
+        stack.Children.Add(LabeledField("Move 1", _moves[0]));
+        stack.Children.Add(LabeledField("Move 2", _moves[1]));
+        stack.Children.Add(LabeledField("Move 3", _moves[2]));
+        stack.Children.Add(LabeledField("Move 4", _moves[3]));
 
         var ivRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         var evRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
@@ -175,20 +178,20 @@ public sealed class PkmEditorView : UserControl
         _evBoxes = MakeStatRow(evRow, "EV", evs[0], evs[1], evs[2], evs[3], evs[4], evs[5], 0, 255);
         stack.Children.Add(ivRow);
         stack.Children.Add(evRow);
-        _friendshipBox = NumericField("Friendship", _entity.CurrentFriendship, 0, 255);
-        stack.Children.Add(_friendshipBox);
+        _friendshipBox = NumericControl(_entity.CurrentFriendship, 0, 255);
+        stack.Children.Add(LabeledField("Friendship", _friendshipBox));
         return stack;
     }
 
     private Control TrainerTab()
     {
         var stack = new StackPanel { Spacing = 8, Margin = new Thickness(10) };
-        _otBox = TextBoxField("Original trainer", _entity.OriginalTrainerName);
-        _tidBox = TextBoxField("TID", _entity.TID16.ToString());
-        _sidBox = TextBoxField("SID", _entity.SID16.ToString());
-        stack.Children.Add(_otBox);
-        stack.Children.Add(_tidBox);
-        stack.Children.Add(_sidBox);
+        _otBox = TextBoxControl(_entity.OriginalTrainerName);
+        _tidBox = TextBoxControl(_entity.TID16.ToString());
+        _sidBox = TextBoxControl(_entity.SID16.ToString());
+        stack.Children.Add(LabeledField("Original trainer", _otBox));
+        stack.Children.Add(LabeledField("TID", _tidBox));
+        stack.Children.Add(LabeledField("SID", _sidBox));
         stack.Children.Add(PkChrome.BodyLabel("Changing these changes the OT/ID that other games will see.", 11.5, UiTokens.InkSoft, wrap: true));
         return stack;
     }
@@ -197,41 +200,29 @@ public sealed class PkmEditorView : UserControl
 
     private static string[] NameList(IReadOnlyList<string> names) => [.. names];
 
-    private static NumericUpDown NumericField(string caption, int value, int min, int max)
+    /// <summary>A caption plus the field control, laid out as one row. The control itself is
+    /// created separately (and kept in a field for Apply): wrapping it inline used to return
+    /// the control while leaving it inside this grid — Avalonia then refused to parent it
+    /// anywhere else ("already has a visual parent") and the whole editor failed to open.</summary>
+    private static Grid LabeledField(string caption, Control control)
     {
-        var control = new NumericUpDown { Value = value, Minimum = min, Maximum = max, ClipValueToMinMax = true, HorizontalAlignment = HorizontalAlignment.Stretch };
         var grid = new Grid
         {
             ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
             Children = { PkChrome.PixelLabel(caption, 12, UiTokens.InkSoft), control },
         };
         Grid.SetColumn(control, 1);
-        return control;
+        return grid;
     }
 
-    private static TextBox TextBoxField(string caption, string value)
-    {
-        var control = new TextBox { Text = value, HorizontalAlignment = HorizontalAlignment.Stretch };
-        var grid = new Grid
-        {
-            ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
-            Children = { PkChrome.PixelLabel(caption, 12, UiTokens.InkSoft), control },
-        };
-        Grid.SetColumn(control, 1);
-        return control;
-    }
+    private static NumericUpDown NumericControl(int value, int min, int max) =>
+        new() { Value = value, Minimum = min, Maximum = max, ClipValueToMinMax = true, HorizontalAlignment = HorizontalAlignment.Stretch };
 
-    private static ComboBox ComboBoxField(string caption, string[] options, int selected)
-    {
-        var control = new ComboBox { ItemsSource = options, SelectedIndex = Math.Clamp(selected, 0, Math.Max(0, options.Length - 1)), HorizontalAlignment = HorizontalAlignment.Stretch };
-        var grid = new Grid
-        {
-            ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
-            Children = { PkChrome.PixelLabel(caption, 12, UiTokens.InkSoft), control },
-        };
-        Grid.SetColumn(control, 1);
-        return control;
-    }
+    private static TextBox TextBoxControl(string value) =>
+        new() { Text = value, HorizontalAlignment = HorizontalAlignment.Stretch };
+
+    private static ComboBox ComboControl(string[] options, int selected) =>
+        new() { ItemsSource = options, SelectedIndex = Math.Clamp(selected, 0, Math.Max(0, options.Length - 1)), HorizontalAlignment = HorizontalAlignment.Stretch };
 
     private static NumericUpDown[] MakeStatRow(StackPanel row, string caption, int a, int b, int c, int d, int e, int f, int min, int max)
     {

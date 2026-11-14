@@ -146,6 +146,26 @@ public sealed class EditorInteractionTests : IDisposable
         var label = cell.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text is { Length: > 0 });
         Assert.Equal("Sparky", label.Text);
     }
+
+    [Fact]
+    public void ThePokemonEditorOpensWithoutReparentingErrors()
+    {
+        var vm = OpenEditor();
+        var (box, slot) = FirstEntity(vm);
+        // The Edit button builds this view; its tab fields used to come back as the
+        // control while the control stayed inside a discarded label grid, so every
+        // Edit click silently failed with "already has a visual parent".
+        var error = Record.Exception(() => _ = new PkmEditorView(vm, _sprites, vm.Slot(box, slot), (false, box, slot)));
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void TheTrainerEditorOpensWithoutReparentingErrors()
+    {
+        var vm = OpenEditor();
+        var error = Record.Exception(() => _ = new TrainerEditorView(vm));
+        Assert.Null(error);
+    }
 }
 
 
