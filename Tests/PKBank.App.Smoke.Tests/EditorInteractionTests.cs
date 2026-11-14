@@ -1,7 +1,9 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using PKBank.App.Services;
 using PKBank.App.ViewModels;
 using PKBank.App.Views;
@@ -109,6 +111,40 @@ public sealed class EditorInteractionTests : IDisposable
         vm.Save!.SetBoxSlotAtIndex(pk, box, slot, EntityImportSettings.None);
         var error = Record.Exception(() => view.OnCellPressed((false, box, slot), new PointerPressedEventArgs(null!, null!, null!, new Avalonia.Point(0, 0), 0, PointerPointProperties.None, KeyModifiers.None)));
         Assert.Null(error);
+    }
+
+    [Fact]
+    public void SteppingBoxesSurvivesEveryRebuild()
+    {
+        var vm = OpenEditor();
+        var view = new SaveEditorView(vm, _sprites);
+        // The box navigation rebuilds every cell; the legality dots live across
+        // refreshes, so a second rebuild used to throw "already has a visual parent"
+        // — the box buttons looked dead from box 2 onward.
+        var error = Record.Exception(() =>
+        {
+            view.StepBox(1);
+            view.StepBox(1);
+            view.StepBox(-1);
+            view.StepBox(-1);
+            view.StepBox(1);
+        });
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void NicknamedEntitiesShowThePlayersName()
+    {
+        var vm = OpenEditor();
+        var (box, slot) = FirstEntity(vm);
+        var pk = vm.Slot(box, slot);
+        pk.Nickname = "Sparky";
+        pk.IsNicknamed = true;
+        vm.Save!.SetBoxSlotAtIndex(pk, box, slot, EntityImportSettings.None);
+        var view = new SaveEditorView(vm, _sprites);
+        var cell = view.CellContent(vm.Slot(box, slot), (false, 0, slot))!;
+        var label = cell.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text is { Length: > 0 });
+        Assert.Equal("Sparky", label.Text);
     }
 }
 
