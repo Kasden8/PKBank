@@ -41,6 +41,7 @@ public sealed class ParkView : UserControl
     private readonly Border _cardHost = new() { IsVisible = false };
     private readonly Border _albumHost = new() { IsVisible = false };
     private readonly Border _creditsHost = new() { IsVisible = false };
+    private readonly Border _pickerHost = new() { IsVisible = false };
     private readonly ScrollViewer _journalScroll;
 
     private string? _selected;
@@ -74,10 +75,10 @@ public sealed class ParkView : UserControl
         Load();
     }
 
-    /// <summary>Fills the park (the first visit) and restores the residents' care.</summary>
+    /// <summary>Restores the residents' care. The roster is never filled automatically:
+    /// the player chooses every visitor (Send from save / Bank / Fill automatically).</summary>
     private void Load()
     {
-        _service.AutoFillIfEmpty();
         var roster = _service.LoadRoster();
         _session.Load(roster);
         _renderer.Residents = roster;
@@ -85,6 +86,8 @@ public sealed class ParkView : UserControl
         _session.RunOfflineLife();
         _selected = roster.FirstOrDefault()?.Id;
         _renderer.SelectedId = _selected;
+        if (roster.Count == 0)
+            _status.Text = "The park is empty — send a Pokémon with \"Send from save\" or \"Send from Bank\", or fill it automatically.";
         Render();
     }
 
@@ -111,6 +114,7 @@ public sealed class ParkView : UserControl
         overlay.Children.Add(_cardHost);
         overlay.Children.Add(_albumHost);
         overlay.Children.Add(_creditsHost);
+        overlay.Children.Add(_pickerHost);
         world.Children.Add(overlay);
 
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
@@ -121,6 +125,7 @@ public sealed class ParkView : UserControl
         AddButton(toolbar, "Pat", () => Pat());
         AddButton(toolbar, "Send from save", () => SendFromSave());
         AddButton(toolbar, "Send from Bank", () => SendFromBank());
+        AddButton(toolbar, "Fill automatically", () => FillAutomatically());
         AddButton(toolbar, "Photo", () => TakePhoto());
         AddButton(toolbar, "Album", () => ShowAlbum());
         AddButton(toolbar, "Credits", () => ShowCredits());
@@ -543,38 +548,97 @@ public sealed class ParkView : UserControl
     {
         if (_saveEditorVm?.Save is null) { _status.Text = "Open a save in the editor first."; return; }
         var sav = _saveEditorVm.Save;
-        var candidates = new List<(int Box, int Slot, PKM Entity)>();
+        var options = new List<(string Label, Func<string> Send)>();
+        for (var i = 0; i < sav.PartyCount && i < 6; i++)
+        {
+            var mon = sav.GetPartySlotAtIndex(i);
+            if (mon.Species <= 0 || mon.IsEgg) continue;
+            options.Add(($"{DisplayName(mon)} · Party · Slot {i + 1}", () => _service.AddSaveVisitor(-1, i)));
+        }
         for (var b = 0; b < sav.BoxCount; b++)
         for (var s = 0; s < sav.BoxSlotCount; s++)
         {
             var mon = sav.GetBoxSlotAtIndex(b, s);
-            if (mon.Species > 0 && !mon.IsEgg) candidates.Add((b, s, mon));
+            if (mon.Species <= 0 || mon.IsEgg) continue;
+            var box = b; var slot = s;
+            options.Add(($"{DisplayName(mon)} · Box {b + 1} · Slot {s + 1}", () => _service.AddSaveVisitor(box, slot)));
         }
-        if (candidates.Count == 0) { _status.Text = "No visitors available in this save."; return; }
-        var chosen = candidates[0];
-        var message = _service.AddSaveVisitor(chosen.Box, chosen.Slot);
-        _status.Text = message;
-        if (message.StartsWith("now lives", StringComparison.Ordinal))
-        {
-            var roster = _service.LoadRoster();
-            _session.Load(roster);
-            _renderer.Residents = roster;
-        }
-        Render();
+        if (options.Count == 0) { _status.Text = "No visitors available in this save."; return; }
+        ShowVisitorPicker("SEND FROM SAVE — pick a Pokémon", options);
     }
 
     private void SendFromBank()
     {
-        var first = _bank.CurrentEntries.FirstOrDefault();
-        if (first is null) { _status.Text = "The Bank is empty."; return; }
-        var message = _service.AddBankVisitor(first.Id);
-        _status.Text = message;
-        if (message.StartsWith("now lives", StringComparison.Ordinal))
+        var entries = _bank.CurrentEntries.Where(e => e.Info.Species > 0).ToList();
+        if (entries.Count == 0) { _status.Text = "The Bank is empty."; return; }
+        var options = entries.Select(entry => (
+            $"{DisplayName(entry.Info)} · Bank · Box {entry.Box + 1} · Slot {entry.Slot + 1}",
+            (Func<string>)(() => _service.AddBankVisitor(entry.Id)))).ToList();
+        ShowVisitorPicker("SEND FROM BANK — pick a Pokémon", options);
+    }
+
+    private void FillAutomatically()
+    {
+        var added = _service.AutoFillNow();
+        _status.Text = added > 0
+            ? $"{added} Pokémon moved into the park."
+            : "The park already has residents (or there was nothing to invite). Remove one to make room.";
+        ReloadRoster();
+    }
+
+    private static string DisplayName(PKM pk)
+    {
+        var nick = pk.Nickname?.Trim();
+        return pk.IsNicknamed && !string.IsNullOrEmpty(nick)
+            ? nick!
+            : PKHeX.Core.SpeciesName.GetSpeciesName(pk.Species, (int)PKHeX.Core.LanguageID.English);
+    }
+
+    private static string DisplayName(BankEntryInfo info)
+    {
+        return !string.IsNullOrWhiteSpace(info.Nickname) ? info.Nickname
+            : GameInfo.GetStrings("en").specieslist.ElementAtOrDefault(info.Species) is { Length: > 0 } name ? name : $"#{info.Species}";
+    }
+
+    private void ShowVisitorPicker(string title, IReadOnlyList<(string Label, Func<string> Send)> options)
+    {
+        var panel = new StackPanel { Spacing = 6, Width = 460 };
+        panel.Children.Add(PkChrome.PixelLabel(title, 15, UiTokens.Bright));
+        panel.Children.Add(PkChrome.BodyLabel(
+            "The Pokémon stays in its save or Bank — this only decides who visits the park.",
+            11.5, UiTokens.InkSoft, wrap: true));
+        var list = new StackPanel { Spacing = 3 };
+        foreach (var option in options)
         {
-            var roster = _service.LoadRoster();
-            _session.Load(roster);
-            _renderer.Residents = roster;
+            var send = option.Send;
+            var button = new Button { Content = option.Label, HorizontalContentAlignment = HorizontalAlignment.Left };
+            SaveEditorView.StyleButton(button);
+            button.Click += (_, _) =>
+            {
+                var message = send();
+                _pickerHost.IsVisible = false;
+                _status.Text = message;
+                if (message.Contains("now lives", StringComparison.Ordinal))
+                    ReloadRoster();
+            };
+            list.Children.Add(button);
         }
+        panel.Children.Add(new ScrollViewer { Content = list, MaxHeight = 420 });
+        var close = new Button { Content = "Close" };
+        SaveEditorView.StyleButton(close);
+        close.Click += (_, _) => _pickerHost.IsVisible = false;
+        panel.Children.Add(close);
+        _pickerHost.Child = OverlayFrame(panel);
+        _pickerHost.IsVisible = true;
+    }
+
+    private void ReloadRoster()
+    {
+        var roster = _service.LoadRoster();
+        _session.Load(roster);
+        _renderer.Residents = roster;
+        _selected = roster.FirstOrDefault(r => r.Id == _selected)?.Id ?? roster.FirstOrDefault()?.Id;
+        _renderer.SelectedId = _selected;
         Render();
     }
 

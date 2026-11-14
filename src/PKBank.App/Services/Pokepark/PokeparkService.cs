@@ -190,12 +190,14 @@ public sealed class PokeparkService(IBankService bank, IGameDataService data)
         }
     }
 
-    /// <summary>Fills the park with residents when it is empty (the player never chose any).</summary>
-    public int AutoFillIfEmpty()
+    /// <summary>Fills the park when the player asks for it ("Fill automatically"). Never
+    /// runs on its own: opening the park does not pick visitors for the player.</summary>
+    public int AutoFillNow()
     {
         lock (_gate)
         {
             var data = PokeparkStore.Load();
+            data.AutoFillSuppressed = false; // an explicit request overrides the suppression.
             if (data.Roster.Count > 0) return 0;
             return FillAutomatically(data, []);
         }

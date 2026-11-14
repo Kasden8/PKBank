@@ -207,7 +207,8 @@ public sealed class SaveEditorView : UserControl
         return grid;
     }
 
-    private void StepBox(int delta)
+    /// <summary>Box navigation (the &lt; / &gt; buttons). Internal for the smoke tests.</summary>
+    internal void StepBox(int delta)
     {
         if (_vm.Save is null) return;
         _vm.BoxIndex = Math.Clamp(_vm.BoxIndex + delta, 0, Math.Max(0, _vm.BoxTotal - 1));
@@ -455,7 +456,8 @@ public sealed class SaveEditorView : UserControl
         }
     }
 
-    private Control? CellContent(PKM pk, (bool IsParty, int Box, int Slot) cell)
+    /// <summary>Builds the visual content of one slot. Internal for the smoke tests.</summary>
+    internal Control? CellContent(PKM pk, (bool IsParty, int Box, int Slot) cell)
     {
         if (pk.Species == 0) return null;
         var look = new SpriteLook(pk.Species, pk.Form, pk.IsShiny, new SpriteTraits
@@ -478,7 +480,11 @@ public sealed class SaveEditorView : UserControl
             });
         }
 
-        var name = SpeciesName.GetSpeciesName(pk.Species, (int)LanguageID.English);
+        // The player's nickname comes first — species name only for the unnamed.
+        var nickname = pk.Nickname?.Trim();
+        var name = pk.IsNicknamed && !string.IsNullOrEmpty(nickname)
+            ? nickname
+            : SpeciesName.GetSpeciesName(pk.Species, (int)LanguageID.English);
         var text = new TextBlock
         {
             Text = pk.IsEgg ? "EGG" : name,
@@ -495,6 +501,9 @@ public sealed class SaveEditorView : UserControl
         var grid = new Grid { Children = { stack } };
         if (!cell.IsParty && _dots.TryGetValue(cell, out var dot))
         {
+            // The dot lives across refreshes: detach it from the grid this rebuild replaced,
+            // or Avalonia throws "already has a visual parent" and the box navigation dies.
+            if (dot.Parent is Panel previous) previous.Children.Remove(dot);
             dot.HorizontalAlignment = HorizontalAlignment.Right;
             dot.VerticalAlignment = VerticalAlignment.Top;
             dot.Margin = new Thickness(0, 4, 4, 0);
@@ -569,6 +578,9 @@ public sealed class SaveEditorView : UserControl
         var name = SpeciesName.GetSpeciesName(pk.Species, (int)LanguageID.English);
 
         Row(stack, "SPECIES", pk.IsEgg ? "EGG" : name, 15);
+        var nick = pk.Nickname?.Trim();
+        if (!pk.IsEgg && pk.IsNicknamed && !string.IsNullOrEmpty(nick))
+            Row(stack, "NICKNAME", nick, 13.5);
         Row(stack, "LEVEL", $"Lv. {pk.CurrentLevel}", 13.5);
         Row(stack, "GENDER", pk.Gender switch { 0 => "Male", 1 => "Female", _ => "—" }, 12.5);
         Row(stack, "NATURE", NatureUtil.GetNature((Nature)pk.Nature).ToString(), 12.5);
