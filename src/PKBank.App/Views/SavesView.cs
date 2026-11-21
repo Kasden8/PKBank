@@ -7,16 +7,18 @@ using PKBank.App.Services;
 using PKBank.App.Theme;
 using PKBank.App.ViewModels;
 using PKHeX.Core;
-using SpeciesNameAlias = PKHeX.Core.SpeciesName;
 
 namespace PKBank.App.Views;
 
 /// <summary>
-/// The save entry point: discover saves in the watched folders (emulators + manual),
-/// then open one in the editor.
+/// The save entry point: the saves PKBank remembers (opened at least once) plus whatever
+/// lives in the watched folders, so any save reopens in one click — no file dialog.
 /// </summary>
 public sealed class SavesView : UserControl
 {
+    private const int MaxScanDepth = 6;
+    private const long MaxScanFileSize = 4 * 1024 * 1024;
+
     private readonly SaveEditorViewModel _vm;
     private readonly SpriteService _sprites;
     private readonly TextBlock _status = new() { FontSize = 12.5 };
@@ -31,7 +33,7 @@ public sealed class SavesView : UserControl
 
         var header = new StackPanel { Spacing = 4 };
         header.Children.Add(PkChrome.PixelLabel("SAVES", 24, UiTokens.Bright));
-        header.Children.Add(PkChrome.BodyLabel("Saves found by PKBank in its watched folders.", 12.5, UiTokens.InkSoft));
+        header.Children.Add(PkChrome.BodyLabel("Every save you have opened stays here. Open one in a click, or browse all of its boxes.", 12.5, UiTokens.InkSoft));
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         var open = new Button { Content = "Open a save file…" };
@@ -42,7 +44,7 @@ public sealed class SavesView : UserControl
         link.Click += (_, _) => { _ = LinkFolderAsync(); };
         var rescan = new Button { Content = "Rescan folders" };
         SaveEditorView.StyleButton(rescan);
-        rescan.Click += (_, _) => ScanWatchedFolders();
+        rescan.Click += (_, _) => Refresh();
         buttons.Children.Add(open);
         buttons.Children.Add(link);
         buttons.Children.Add(rescan);
@@ -60,70 +62,153 @@ public sealed class SavesView : UserControl
             },
         };
         Content = root;
-        ScanWatchedFolders();
+        Refresh();
     }
 
-    private void ScanWatchedFolders()
+    /// <summary>Rebuilds both lists: remembered saves first, then a scan of the watched folders.</summary>
+    private void Refresh()
     {
         _list.Children.Clear();
-        var folders = WatchedRootStore.GetWatchedFolders();
-        if (folders.Count == 0)
+
+        var registered = SaveRegistry.Default.GetAll();
+        _list.Children.Add(SectionLabel("REMEMBERED SAVES"));
+        if (registered.Count == 0)
         {
-            _list.Children.Add(PkChrome.BodyLabel("No folders linked yet. Link an emulator's save folder, or open a save file directly.", 12.5, UiTokens.InkSoft, wrap: true));
-            _status.Text = "Link a folder to see your saves here.";
-            return;
+            _list.Children.Add(PkChrome.BodyLabel("Nothing here yet — open a save file and it will stay listed.", 12.5, UiTokens.InkSoft, wrap: true));
+        }
+        else
+        {
+            foreach (var entry in registered) _list.Children.Add(RegisteredRow(entry));
         }
 
-        var anyFound = false;
-        foreach (var folder in folders)
+        _list.Children.Add(SectionLabel("IN WATCHED FOLDERS"));
+        var found = ScanWatchedFolders();
+        if (found == 0)
         {
-            if (!Directory.Exists(folder.Path)) continue;
-            var files = Directory.EnumerateFiles(folder.Path, "*", SearchOption.TopDirectoryOnly);
-            foreach (var file in files)
-            {
-                if (!SaveFileProbe.LooksLikeSave(file)) continue;
-                anyFound = true;
-                AddRow(file, folder.Label ?? folder.Path);
-            }
+            var folders = WatchedRootStore.GetWatchedFolders();
+            _list.Children.Add(PkChrome.BodyLabel(
+                folders.Count == 0
+                    ? "No folders linked yet. Link an emulator's save folder, or open a save file directly."
+                    : "No saves recognized in those folders yet (open a save file directly if needed).",
+                12.5, UiTokens.InkSoft, wrap: true));
         }
-        _status.Text = anyFound
-            ? $"{_list.Children.Count} save(s) found. Pick one to open it in the editor."
-            : "No saves recognized in those folders yet (open a save file directly if needed).";
+
+        _status.Text = $"{registered.Count} remembered · {found} found in watched folders. Pick one to open it in the editor.";
     }
 
-    private void AddRow(string path, string sourceLabel)
+    private static Control SectionLabel(string caption)
+    {
+        var label = PkChrome.PixelLabel(caption, 13, UiTokens.Bright);
+        label.Margin = new Thickness(0, 8, 0, 2);
+        return label;
+    }
+
+    private Border RegisteredRow(RegisteredSave entry)
+    {
+        var body = new StackPanel { Spacing = 3 };
+        body.Children.Add(PkChrome.BodyLabel($"{entry.GameLabel} · Gen {entry.Generation} · {entry.TrainerName}", 13.5, UiTokens.Ink0));
+        body.Children.Add(PkChrome.BodyLabel($"{entry.FileName} — {entry.Path}", 11, UiTokens.InkSoft, wrap: true));
+        body.Children.Add(PkChrome.BodyLabel($"{entry.BoxCount} boxes · opened {entry.LastOpened.LocalDateTime:g}", 11, UiTokens.InkSoft));
+
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        if (entry.Exists)
+        {
+            var open = ActionButton("Open", () => { _ = OpenAsync(entry.Path, browseBoxes: false); });
+            var boxes = ActionButton("Boxes", () => { _ = OpenAsync(entry.Path, browseBoxes: true); });
+            actions.Children.Add(open);
+            actions.Children.Add(boxes);
+        }
+        else
+        {
+            var missing = PkChrome.BodyLabel("File not found", 11.5, UiTokens.Bad, wrap: true);
+            missing.Margin = new Thickness(0, 0, 8, 0);
+            actions.Children.Add(missing);
+            actions.Children.Add(ActionButton("Forget", () =>
+            {
+                SaveRegistry.Default.Remove(entry.Path);
+                Refresh();
+            }));
+        }
+
+        return RowBorder(body, actions);
+    }
+
+    private int ScanWatchedFolders()
+    {
+        var found = 0;
+        foreach (var folder in WatchedRootStore.GetWatchedFolders())
+        {
+            if (!Directory.Exists(folder.Path)) continue;
+            foreach (var file in EnumerateFiles(folder.Path, MaxScanDepth))
+            {
+                try
+                {
+                    if (new FileInfo(file).Length > MaxScanFileSize) continue;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { continue; }
+                if (!SaveFileProbe.LooksLikeSave(file)) continue;
+                found++;
+                _list.Children.Add(ScanRow(file, folder.Label ?? folder.Path));
+            }
+        }
+        return found;
+    }
+
+    /// <summary>Breadth-first walk with a depth cap: one linked emulator root can cover every game.</summary>
+    private static IEnumerable<string> EnumerateFiles(string root, int maxDepth)
+    {
+        var pending = new Stack<(string Directory, int Depth)>();
+        pending.Push((root, 0));
+        while (pending.Count > 0)
+        {
+            var (directory, depth) = pending.Pop();
+            string[] files;
+            try { files = Directory.GetFiles(directory); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException) { continue; }
+            foreach (var file in files) yield return file;
+            if (depth >= maxDepth) continue;
+            string[] children;
+            try { children = Directory.GetDirectories(directory); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException) { continue; }
+            foreach (var child in children) pending.Push((child, depth + 1));
+        }
+    }
+
+    private Border ScanRow(string path, string sourceLabel)
     {
         string info;
         try
         {
             var save = SaveUtil.GetSaveFile(File.ReadAllBytes(path));
-            info = save is null ? "Parses as a save" : $"{save.Context} · Gen {save.Generation} · trainer {save.OT} · {save.BoxCount} boxes";
+            info = save is null
+                ? "Parses as a save"
+                : $"{GameInfo.GetVersionName(save.Version)} · Gen {save.Generation} · trainer {save.OT} · {save.BoxCount} boxes";
         }
         catch (Exception error)
         {
             info = "Unreadable (" + error.Message + ")";
         }
 
+        var body = new StackPanel { Spacing = 3 };
+        body.Children.Add(PkChrome.BodyLabel(Path.GetFileName(path), 13.5, UiTokens.Ink0));
+        body.Children.Add(PkChrome.BodyLabel(info, 11.5, UiTokens.InkSoft));
+        body.Children.Add(PkChrome.BodyLabel("from " + sourceLabel + " · " + path, 11, UiTokens.InkSoft, wrap: true));
+
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        actions.Children.Add(ActionButton("Open", () => { _ = OpenAsync(path, browseBoxes: false); }));
+        actions.Children.Add(ActionButton("Boxes", () => { _ = OpenAsync(path, browseBoxes: true); }));
+        return RowBorder(body, actions);
+    }
+
+    private static Border RowBorder(Control body, Control actions)
+    {
         var grid = new Grid
         {
             ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)],
-            Children =
-            {
-                new StackPanel
-                {
-                    Spacing = 3,
-                    Children =
-                    {
-                        PkChrome.BodyLabel(Path.GetFileName(path), 13.5, UiTokens.Ink0),
-                        PkChrome.BodyLabel(info, 11.5, UiTokens.InkSoft),
-                        PkChrome.BodyLabel("from " + sourceLabel, 11, UiTokens.InkSoft),
-                    },
-                },
-                OpenButton(path),
-            },
+            Children = { body, actions },
         };
-        Grid.SetColumn(grid.Children[1], 1);
-        var row = new Border
+        Grid.SetColumn(actions, 1);
+        return new Border
         {
             Padding = new Thickness(12),
             Margin = new Thickness(0, 0, 0, 6),
@@ -135,20 +220,44 @@ public sealed class SavesView : UserControl
         };
     }
 
-    private Button OpenButton(string path)
+    private static Button ActionButton(string caption, Action action)
     {
-        var button = new Button { Content = "Open" };
+        var button = new Button { Content = caption };
         SaveEditorView.StyleButton(button);
-        button.Click += async (_, _) =>
-        {
-            _status.Text = await _vm.LoadAsync(path) ?? "Opened " + Path.GetFileName(path);
-            if (_vm.Save is not null)
-            {
-                var navigator = App.Services.GetService(typeof(Navigation.Navigator)) as Navigation.Navigator;
-                navigator?.Show(new SaveEditorView(_vm, _sprites));
-            }
-        };
+        button.Click += (_, _) => action();
         return button;
+    }
+
+    private async Task OpenAsync(string path, bool browseBoxes)
+    {
+        if (_vm.Dirty)
+        {
+            _status.Text = "You have unsaved changes — save them in the editor before switching saves.";
+            return;
+        }
+        if (!File.Exists(path))
+        {
+            _status.Text = "The save moved or was deleted: " + path;
+            Refresh();
+            return;
+        }
+        string? error;
+        try { error = await _vm.LoadAsync(path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _status.Text = "Could not read the save: " + ex.Message;
+            return;
+        }
+        if (error is not null)
+        {
+            _status.Text = error;
+            return;
+        }
+        var navigator = Navigator();
+        if (navigator is null) return;
+        navigator.Show(browseBoxes
+            ? new BoxBrowserView(_vm, _sprites)
+            : new SaveEditorView(_vm, _sprites));
     }
 
     private async Task LinkFolderAsync()
@@ -163,11 +272,16 @@ public sealed class SavesView : UserControl
         if (folders.Count == 0) return;
         var path = folders[0].Path.LocalPath;
         WatchedRootStore.AddFolder(new WatchedRootStore.Folder(path, Path.GetFileName(path)));
-        ScanWatchedFolders();
+        Refresh();
     }
 
     private async Task PickAndLoadAsync()
     {
+        if (_vm.Dirty)
+        {
+            _status.Text = "You have unsaved changes — save them in the editor before switching saves.";
+            return;
+        }
         var top = TopLevel.GetTopLevel(this);
         if (top is null) return;
         var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -184,8 +298,7 @@ public sealed class SavesView : UserControl
             _status.Text = error;
             return;
         }
-        var navigator = App.Services.GetService(typeof(Navigation.Navigator)) as Navigation.Navigator;
-        navigator?.Show(new SaveEditorView(_vm, _sprites));
+        Navigator()?.Show(new SaveEditorView(_vm, _sprites));
     }
 
     /// <summary>Loads a save whose path arrived from the command line and jumps into the editor.</summary>
@@ -197,7 +310,9 @@ public sealed class SavesView : UserControl
             _status.Text = error;
             return;
         }
-        var navigator = App.Services.GetService(typeof(Navigation.Navigator)) as Navigation.Navigator;
-        navigator?.Show(new SaveEditorView(_vm, _sprites));
+        Navigator()?.Show(new SaveEditorView(_vm, _sprites));
     }
+
+    private static Navigation.Navigator? Navigator() =>
+        App.Services?.GetService(typeof(Navigation.Navigator)) as Navigation.Navigator;
 }

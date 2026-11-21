@@ -193,7 +193,8 @@ public partial class MainWindow : Window
                     App.Services.GetRequiredService<IBackupService>(),
                     App.Services.GetRequiredService<ISafeSaveWriter>(),
                     App.Services.GetRequiredService<IBankService>(),
-                    App.Services.GetRequiredService<SaveEngine>());
+                    App.Services.GetRequiredService<SaveEngine>(),
+                    App.Services.GetRequiredService<SaveRegistry>());
                 var savesView = new SavesView(
                     _currentSaveEditorVm,
                     App.Services.GetRequiredService<SpriteService>());
