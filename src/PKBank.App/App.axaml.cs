@@ -22,21 +22,30 @@ public sealed class App : Application
         AppLog.Info("app", "Services wired");
         // Last-resort net: an exception that escapes a handler must never kill the session.
         // It is logged (the user can read pkbank.log) and the UI keeps running.
-        Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (_, e) =>
+        // Only the desktop session installs it: under the headless test session a swallowed
+        // exception would turn a broken UI into a green test.
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
         {
-            AppLog.Error("app", "Unhandled UI exception", e.Exception);
-            e.Handled = true;
-        };
-        // Release check (best-effort, never blocks startup on the network).
-        _ = Task.Run(async () =>
-        {
-            try
+            Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (_, e) =>
             {
-                var update = await Services.GetRequiredService<AppUpdateService>().CheckAsync().ConfigureAwait(false);
-                AppLog.Info("update", update is { } u ? $"Newer build available: {u.Title}" : "No updates in feed.");
-            }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { }
-        });
+                AppLog.Error("app", "Unhandled UI exception", e.Exception);
+                e.Handled = true;
+            };
+        }
+        // Release check (best-effort, never blocks startup on the network). Only the real
+        // desktop session checks: the headless test session must stay offline and quick.
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var update = await Services.GetRequiredService<AppUpdateService>().CheckAsync().ConfigureAwait(false);
+                    AppLog.Info("update", update is { } u ? $"Newer build available: {u.Title}" : "No updates in feed.");
+                }
+                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { }
+            });
+        }
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new Views.MainWindow();

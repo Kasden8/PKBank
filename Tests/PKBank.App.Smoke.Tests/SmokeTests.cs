@@ -62,7 +62,7 @@ public sealed class SaveAndBankFlowTests : IDisposable
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     private SaveEditorViewModel OpenEditor()
-        => new(_backups, _writer, _bank, _engine);
+        => new(_backups, _writer, _bank, _engine, new SaveRegistry(() => null, _ => { }));
 
     [Fact]
     public async Task DepositSendCopyWithdrawExportImport_LoopsEntirely()
