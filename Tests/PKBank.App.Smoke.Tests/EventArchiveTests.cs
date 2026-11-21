@@ -1,5 +1,4 @@
 using Avalonia;
-using Avalonia.Headless;
 using PKBank.App.Services;
 using PKForge.Domain;
 using PKForge.Engine;
@@ -20,8 +19,6 @@ public sealed class EventArchiveTests
 {
     private static readonly EventDatabaseService Events = new();
 
-    private static void EnsurePlatform() => HeadlessTestPlatform.Ensure();
-
     private static IReadOnlyList<EventGift> Gen7Album()
     {
         using var session = new SaveEngineSession(FixtureGen7());
@@ -40,9 +37,8 @@ public sealed class EventArchiveTests
     }
 
     [Fact]
-    public void GalleryCardsJoinTheEmbeddedDatabase()
+    public void GalleryCardsJoinTheEmbeddedDatabase() => HeadlessTestPlatform.Run(() =>
     {
-        EnsurePlatform();
         var before = Gen7Album();
         Assert.True(before.Count > 0, "the embedded MGDB should already offer Gen 7 cards");
 
@@ -52,12 +48,11 @@ public sealed class EventArchiveTests
         var after = Gen7Album();
         Assert.True(after.Count >= before.Count, "the merged album must never lose cards");
         Assert.Contains(after, g => g.Details?.SourceFile is not null);
-    }
+    });
 
     [Fact]
-    public void LoadingAnotherGenerationKeepsTheFirst()
+    public void LoadingAnotherGenerationKeepsTheFirst() => HeadlessTestPlatform.Run(() =>
     {
-        EnsurePlatform();
         EventArchive.EnsureLoaded(7);
         var gen7Cards = EncounterEvent.EGDB_G7.Length;
         Assert.True(gen7Cards > 0);
@@ -66,5 +61,5 @@ public sealed class EventArchiveTests
 
         Assert.True(EncounterEvent.EGDB_G9.Length > 0);
         Assert.Equal(gen7Cards, EncounterEvent.EGDB_G7.Length);
-    }
+    });
 }

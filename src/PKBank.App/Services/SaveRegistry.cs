@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using PKHeX.Core;
 
 namespace PKBank.App.Services;
@@ -12,9 +13,11 @@ public sealed record RegisteredSave(
     int BoxCount,
     DateTimeOffset LastOpened)
 {
+    [JsonIgnore]
     public string FileName => System.IO.Path.GetFileName(Path);
 
     /// <summary>The file is still where it was when it was opened.</summary>
+    [JsonIgnore]
     public bool Exists
     {
         get

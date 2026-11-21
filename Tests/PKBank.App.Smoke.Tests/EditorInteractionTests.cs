@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using PKBank.App.Services;
@@ -23,9 +22,6 @@ namespace PKBank.App.Smoke.Tests;
 /// </summary>
 public sealed class EditorInteractionTests : IDisposable
 {
-    /// <summary>The view decodes sprites, so the Avalonia platform must exist (headless, Skia-backed).</summary>
-    private static void EnsurePlatform() => HeadlessTestPlatform.Ensure();
-
     private readonly string _root = Path.Combine(Path.GetTempPath(), "pkbank-edit-" + Guid.NewGuid().ToString("N"));
     private readonly string _savePath;
     private readonly FileBankService _bank;
@@ -38,8 +34,8 @@ public sealed class EditorInteractionTests : IDisposable
 
     public EditorInteractionTests()
     {
-        EnsurePlatform();
-        _registry = new SaveRegistry(() => _registryRaw, raw => _registryRaw = raw);        Directory.CreateDirectory(_root);
+        _registry = new SaveRegistry(() => _registryRaw, raw => _registryRaw = raw);
+        Directory.CreateDirectory(_root);
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "PKBank.slnx")))
             directory = directory.Parent;
@@ -85,17 +81,17 @@ public sealed class EditorInteractionTests : IDisposable
     }
 
     [Fact]
-    public void ClickingAnEntityBuildsTheSummary()
+    public void ClickingAnEntityBuildsTheSummary() => HeadlessTestPlatform.Run(() =>
     {
         var vm = OpenEditor();
         var view = new SaveEditorView(vm, _sprites);
         var (box, slot) = FirstEntity(vm);
         var error = Record.Exception(() => view.OnCellPressed((false, box, slot), new PointerPressedEventArgs(null!, null!, null!, new Avalonia.Point(0, 0), 0, PointerPointProperties.None, KeyModifiers.None)));
         Assert.Null(error);
-    }
+    });
 
     [Fact]
-    public void ClickingAPoisonedEntitySurvives()
+    public void ClickingAPoisonedEntitySurvives() => HeadlessTestPlatform.Run(() =>
     {
         var vm = OpenEditor();
         var view = new SaveEditorView(vm, _sprites);
@@ -113,10 +109,10 @@ public sealed class EditorInteractionTests : IDisposable
         vm.Save!.SetBoxSlotAtIndex(pk, box, slot, EntityImportSettings.None);
         var error = Record.Exception(() => view.OnCellPressed((false, box, slot), new PointerPressedEventArgs(null!, null!, null!, new Avalonia.Point(0, 0), 0, PointerPointProperties.None, KeyModifiers.None)));
         Assert.Null(error);
-    }
+    });
 
     [Fact]
-    public void SteppingBoxesSurvivesEveryRebuild()
+    public void SteppingBoxesSurvivesEveryRebuild() => HeadlessTestPlatform.Run(() =>
     {
         var vm = OpenEditor();
         var view = new SaveEditorView(vm, _sprites);
@@ -132,10 +128,10 @@ public sealed class EditorInteractionTests : IDisposable
             view.StepBox(1);
         });
         Assert.Null(error);
-    }
+    });
 
     [Fact]
-    public void NicknamedEntitiesShowThePlayersName()
+    public void NicknamedEntitiesShowThePlayersName() => HeadlessTestPlatform.Run(() =>
     {
         var vm = OpenEditor();
         var (box, slot) = FirstEntity(vm);
@@ -147,10 +143,10 @@ public sealed class EditorInteractionTests : IDisposable
         var cell = view.CellContent(vm.Slot(box, slot), (false, 0, slot))!;
         var label = cell.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text is { Length: > 0 });
         Assert.Equal("Sparky", label.Text);
-    }
+    });
 
     [Fact]
-    public void ThePokemonEditorOpensWithoutReparentingErrors()
+    public void ThePokemonEditorOpensWithoutReparentingErrors() => HeadlessTestPlatform.Run(() =>
     {
         var vm = OpenEditor();
         var (box, slot) = FirstEntity(vm);
@@ -159,15 +155,15 @@ public sealed class EditorInteractionTests : IDisposable
         // Edit click silently failed with "already has a visual parent".
         var error = Record.Exception(() => _ = new PkmEditorView(vm, _sprites, vm.Slot(box, slot), (false, box, slot)));
         Assert.Null(error);
-    }
+    });
 
     [Fact]
-    public void TheTrainerEditorOpensWithoutReparentingErrors()
+    public void TheTrainerEditorOpensWithoutReparentingErrors() => HeadlessTestPlatform.Run(() =>
     {
         var vm = OpenEditor();
         var error = Record.Exception(() => _ = new TrainerEditorView(vm));
         Assert.Null(error);
-    }
+    });
 
     [Fact]
     public void OpeningASaveRemembersItsLocation()
@@ -182,22 +178,40 @@ public sealed class EditorInteractionTests : IDisposable
     }
 
     [Fact]
-    public void TheBoxBrowserDrawsEveryBox()
+    public void TheBoxBrowserDrawsEveryBox() => HeadlessTestPlatform.Run(() =>
     {
         var vm = OpenEditor();
         var browser = new BoxBrowserView(vm, _sprites);
         Assert.Equal(vm.Save!.BoxCount, browser.TileCount);
-    }
+    });
 
     [Fact]
-    public void ChoosingABoxOpensTheEditorThere()
+    public void TheSavesScreenListsRegisteredSaves() => HeadlessTestPlatform.Run(() =>
+    {
+        var vm = OpenEditor();
+        var registry = new SaveRegistry(() => null, _ => { });
+        var entry = registry.Register(Path.GetFullPath(_savePath), "Configured Name", 6, "Kasden", 31);
+
+        var view = new SavesView(vm, _sprites, registry);
+
+        // The row itself is the unit under test: a detached view has no visual tree yet.
+        var row = view.RegisteredRow(entry);
+        var buttons = row.GetVisualDescendants().OfType<Button>().ToList();
+        Assert.Contains(buttons, button => Equals(button.Content, "Open"));
+        Assert.Contains(buttons, button => Equals(button.Content, "Boxes"));
+        var title = row.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(text => text.Text?.Contains("Configured Name") == true);
+        Assert.NotNull(title);
+    });
+
+    [Fact]
+    public void ChoosingABoxOpensTheEditorThere() => HeadlessTestPlatform.Run(() =>
     {
         var vm = OpenEditor();
         var browser = new BoxBrowserView(vm, _sprites);
         var error = Record.Exception(() => _ = browser.BuildEditorFor(2));
         Assert.Null(error);
         Assert.Equal(2, vm.BoxIndex);
-    }
+    });
 }
 
 

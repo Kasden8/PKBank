@@ -21,13 +21,15 @@ public sealed class SavesView : UserControl
 
     private readonly SaveEditorViewModel _vm;
     private readonly SpriteService _sprites;
+    private readonly SaveRegistry _registry;
     private readonly TextBlock _status = new() { FontSize = 12.5 };
     private readonly StackPanel _list = new() { Spacing = 6 };
 
-    public SavesView(SaveEditorViewModel vm, SpriteService sprites)
+    public SavesView(SaveEditorViewModel vm, SpriteService sprites, SaveRegistry? registry = null)
     {
         _vm = vm;
         _sprites = sprites;
+        _registry = registry ?? SaveRegistry.Default;
         Background = Brushes.Transparent;
         _status.Foreground = PkChrome.Brush(UiTokens.InkSoft);
 
@@ -49,6 +51,9 @@ public sealed class SavesView : UserControl
         buttons.Children.Add(link);
         buttons.Children.Add(rescan);
 
+        _list.MaxWidth = 1000;
+        _list.HorizontalAlignment = HorizontalAlignment.Left;
+
         var root = new StackPanel
         {
             Spacing = 14,
@@ -57,7 +62,11 @@ public sealed class SavesView : UserControl
             {
                 header,
                 buttons,
-                new ScrollViewer { Content = _list },
+                new ScrollViewer
+                {
+                    Content = _list,
+                    HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+                },
                 _status,
             },
         };
@@ -70,7 +79,7 @@ public sealed class SavesView : UserControl
     {
         _list.Children.Clear();
 
-        var registered = SaveRegistry.Default.GetAll();
+        var registered = _registry.GetAll();
         _list.Children.Add(SectionLabel("REMEMBERED SAVES"));
         if (registered.Count == 0)
         {
@@ -96,6 +105,32 @@ public sealed class SavesView : UserControl
         _status.Text = $"{registered.Count} remembered · {found} found in watched folders. Pick one to open it in the editor.";
     }
 
+    /// <summary>A short path for the row (the full one lives in the tooltip).</summary>
+    private static TextBlock PathLabel(string text, string fullPath)
+    {
+        var label = PkChrome.BodyLabel(text, 11, UiTokens.InkSoft);
+        label.TextTrimming = TextTrimming.CharacterEllipsis;
+        ToolTip.SetTip(label, fullPath);
+        return label;
+    }
+
+    /// <summary>Keeps the tail of a long emulator path: "C:\…\00055e00\data\00000001\main".</summary>
+    private static string ShortenPath(string path)
+    {
+        try
+        {
+            var root = Path.GetPathRoot(path) ?? "";
+            var rest = path[root.Length..];
+            var parts = rest.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length <= 4) return path;
+            return root + "…" + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar, parts[^3..]);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return path;
+        }
+    }
+
     private static Control SectionLabel(string caption)
     {
         var label = PkChrome.PixelLabel(caption, 13, UiTokens.Bright);
@@ -103,11 +138,12 @@ public sealed class SavesView : UserControl
         return label;
     }
 
-    private Border RegisteredRow(RegisteredSave entry)
+    /// <summary>One remembered save, with its Open/Boxes buttons. Internal for the smoke tests.</summary>
+    internal Border RegisteredRow(RegisteredSave entry)
     {
         var body = new StackPanel { Spacing = 3 };
         body.Children.Add(PkChrome.BodyLabel($"{entry.GameLabel} · Gen {entry.Generation} · {entry.TrainerName}", 13.5, UiTokens.Ink0));
-        body.Children.Add(PkChrome.BodyLabel($"{entry.FileName} — {entry.Path}", 11, UiTokens.InkSoft, wrap: true));
+        body.Children.Add(PathLabel($"{entry.FileName} — {ShortenPath(entry.Path)}", entry.Path));
         body.Children.Add(PkChrome.BodyLabel($"{entry.BoxCount} boxes · opened {entry.LastOpened.LocalDateTime:g}", 11, UiTokens.InkSoft));
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
@@ -125,7 +161,7 @@ public sealed class SavesView : UserControl
             actions.Children.Add(missing);
             actions.Children.Add(ActionButton("Forget", () =>
             {
-                SaveRegistry.Default.Remove(entry.Path);
+                _registry.Remove(entry.Path);
                 Refresh();
             }));
         }
@@ -192,7 +228,7 @@ public sealed class SavesView : UserControl
         var body = new StackPanel { Spacing = 3 };
         body.Children.Add(PkChrome.BodyLabel(Path.GetFileName(path), 13.5, UiTokens.Ink0));
         body.Children.Add(PkChrome.BodyLabel(info, 11.5, UiTokens.InkSoft));
-        body.Children.Add(PkChrome.BodyLabel("from " + sourceLabel + " · " + path, 11, UiTokens.InkSoft, wrap: true));
+        body.Children.Add(PathLabel("from " + sourceLabel + " · " + ShortenPath(path), path));
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         actions.Children.Add(ActionButton("Open", () => { _ = OpenAsync(path, browseBoxes: false); }));

@@ -1,3 +1,4 @@
+using PKBank.App.Services;
 using PKBank.App.Services.Pokepark;
 using PKBank.App.ViewModels;
 using PKForge.Domain;
@@ -118,7 +119,7 @@ public sealed class ParkFlowTests : IDisposable
     }
 
     [Fact]
-    public void TheSceneDrawsTheResident()
+    public void TheSceneDrawsTheResident() => HeadlessTestPlatform.Run(() =>
     {
         var service = Service();
         service.AddVisitor(new ParkPokemon("bank:test", 25, 0, false, "Pikachu", "Bank"));
@@ -138,7 +139,7 @@ public sealed class ParkFlowTests : IDisposable
         // residents are drawn on the background).
         var pixels = bitmap.Pixels;
         Assert.Contains(pixels, p => p.Alpha > 0);
-    }
+    });
 
     [Fact]
     public void TheParkCannotGrowPastItsLimit()
@@ -204,7 +205,9 @@ public sealed class ParkFlowTests : IDisposable
     {
         var backups = new FileBackupService(Path.Combine(_root, "backups"));
         var writer = new SafeSaveWriter(new SaveEngine(), backups, new LocalFile());
-        var editor = new SaveEditorViewModel(backups, writer, _bank, new SaveEngine());
+        // Isolated registry: a test must never touch the user's real settings file.
+        var registry = new SaveRegistry(() => null, _ => { });
+        var editor = new SaveEditorViewModel(backups, writer, _bank, new SaveEngine(), registry);
         var error = await editor.LoadAsync(FixturePath());
         Assert.Null(error);
         var (box, slot) = FindFirstNonEmpty(editor);
