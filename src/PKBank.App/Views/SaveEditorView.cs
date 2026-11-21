@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using PKForge.Domain;
 using PKBank.App.Services;
 using PKBank.App.Theme;
@@ -28,7 +29,7 @@ public sealed class SaveEditorView : UserControl
     private readonly SaveEditorViewModel _vm;
     private readonly SpriteService _sprites;
 
-    private readonly TextBlock _fileLabel = new() { VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _fileLabel = new() { VerticalAlignment = VerticalAlignment.Center, MaxWidth = 280 };
     private readonly TextBlock _statusLabel = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _saveButton = new() { Content = "Save" };
     private readonly TextBlock _boxTitle = new() { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
@@ -37,6 +38,13 @@ public sealed class SaveEditorView : UserControl
     private Canvas? _partyCanvas;
     private Canvas? _boxCanvas;
     private Border? _summaryHost;
+    private Grid? _body;
+    private StackPanel? _left;
+    private StackPanel? _root;
+    private ScrollViewer? _hostScroller;
+
+    /// <summary>Width the editor needs to keep the summary card beside the boxes.</summary>
+    private const double SideBySideWidth = 950;
 
     private static readonly (bool IsParty, int Box, int Slot)[] AllBoxCells =
         Enumerable.Range(0, 30).Select(i => (false, 0, i)).ToArray();
@@ -109,6 +117,11 @@ public sealed class SaveEditorView : UserControl
         _summaryHost = new Border
         {
             Width = 292,
+            // Width alone does not shrink the measured size: without the cap the card
+            // asked for the width of its widest row and pushed the whole editor
+            // (and the toolbar) past the window edge.
+            MaxWidth = 292,
+            HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Stretch,
             Margin = new Thickness(18, 0, 0, 0),
             Padding = new Thickness(14),
@@ -119,24 +132,86 @@ public sealed class SaveEditorView : UserControl
         };
         left.Margin = new Thickness(22);
 
+        // The boxes keep their size: when the pane is too narrow they scroll inside
+        // their own area instead of pushing the summary card out of the window.
+        var leftScroller = new ScrollViewer
+        {
+            Content = left,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+
         var body = new Grid
         {
-            ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
+            ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)],
+            RowDefinitions = [new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto)],
             Children =
             {
-                left,
+                leftScroller,
                 _summaryHost,
             },
         };
         Grid.SetColumn(_summaryHost, 1);
+        Grid.SetRowSpan(_summaryHost, 2);
+        _body = body;
+        _left = left;
 
         var root = new StackPanel { Spacing = 10, Margin = new Thickness(26, 22), Children = { top, body } };
+        _root = root;
         Content = root;
         root.Children.Add(_statusLabel);
 
         RegisterGrid(_partyCanvas, AllPartyCells, party: true);
         RegisterGrid(_boxCanvas, AllBoxCells, party: false);
         RefreshAll();
+    }
+
+    /// <summary>
+    /// The editor is hosted in a scrollable pane: when that pane is too narrow for the
+    /// boxes and the summary card side by side, the card moves under the boxes instead
+    /// of hanging outside the window (where its options could not be reached).
+    /// </summary>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        _hostScroller = this.GetVisualAncestors().OfType<ScrollViewer>().FirstOrDefault();
+        if (_hostScroller is null) return;
+        _hostScroller.SizeChanged += OnHostSizeChanged;
+        ApplyBodyLayout(AvailableWidth());
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (_hostScroller is not null) _hostScroller.SizeChanged -= OnHostSizeChanged;
+        _hostScroller = null;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnHostSizeChanged(object? sender, EventArgs e) => ApplyBodyLayout(AvailableWidth());
+
+    /// <summary>The width the editor may use: the pane's viewport minus the root margins.</summary>
+    private double AvailableWidth()
+    {
+        if (_hostScroller is null) return double.MaxValue;
+        var viewport = _hostScroller.Viewport.Width;
+        return viewport > 0 ? viewport - 52 : viewport;
+    }
+
+    private void ApplyBodyLayout(double availableWidth)
+    {
+        if (_body is null || _summaryHost is null || _left is null) return;
+        var sideBySide = availableWidth >= SideBySideWidth;
+        _body.ColumnDefinitions[1].Width = sideBySide ? GridLength.Auto : new GridLength(0);
+        Grid.SetColumn(_summaryHost, sideBySide ? 1 : 0);
+        Grid.SetRow(_summaryHost, sideBySide ? 0 : 1);
+        Grid.SetRowSpan(_summaryHost, sideBySide ? 2 : 1);
+        Grid.SetColumn(_left, 0);
+        Grid.SetRow(_left, 0);
+        _summaryHost.VerticalAlignment = sideBySide ? VerticalAlignment.Stretch : VerticalAlignment.Top;
+        // Cap the editor to the pane: without it the pane measures the content with an
+        // endless width and the summary card ends up outside the window.
+        if (_root is not null && availableWidth is > 0 and < double.MaxValue)
+            _root.MaxWidth = Math.Max(availableWidth, 320);
     }
 
     private Control TopRow(Button openButton, Button bagButton, Button trainerButton, Button boxesButton, Button savesButton)
@@ -614,15 +689,28 @@ public sealed class SaveEditorView : UserControl
             stack.Children.Add(PkChrome.BodyLabel(move == 0 ? "—" : SafeName(strings, move, type: "move"), 12, UiTokens.Ink0));
         }
 
-        var bankRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
-        var send = new Button { Content = "→ Bank (move)" };
+        // The card is narrow, so the actions wrap instead of running past its edge:
+        // a single row of four buttons was 456px wide inside a 264px card and spilled
+        // out of the window.
+        var bankRow = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            ItemSpacing = 8,
+            LineSpacing = 6,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        var send = new Button { Content = "→ Bank" };
         StyleButton(send);
-        var copy = new Button { Content = "+ Bank (copy)" };
+        ToolTip.SetTip(send, "Move this Pokémon to the Bank");
+        var copy = new Button { Content = "+ Bank" };
         StyleButton(copy);
+        ToolTip.SetTip(copy, "Copy this Pokémon to the Bank");
         var editButton = new Button { Content = "Edit" };
         StyleButton(editButton);
+        ToolTip.SetTip(editButton, "Open the Pokémon editor");
         var qrButton = new Button { Content = "Showdown QR" };
         StyleButton(qrButton);
+        ToolTip.SetTip(qrButton, "Show the Showdown text as a QR code");
         var selected = _selected!.Value;
         editButton.Click += (_, _) =>
         {
