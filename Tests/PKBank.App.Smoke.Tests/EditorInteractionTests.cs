@@ -212,6 +212,40 @@ public sealed class EditorInteractionTests : IDisposable
         Assert.Null(error);
         Assert.Equal(2, vm.BoxIndex);
     });
+
+    [Fact]
+    public void TheSelectedPokemonOptionsStayInsideTheWindow() => HeadlessTestPlatform.Run(() =>
+    {
+        var vm = OpenEditor();
+        var view = new SaveEditorView(vm, _sprites);
+        var window = new Window { Width = 1229, Height = 768, Content = view };
+        window.Show();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        var (box, slot) = FirstEntity(vm);
+        view.OnCellPressed((false, box, slot), null!);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        // The summary card is 292px wide with 14px of padding: the options have to wrap
+        // inside it, otherwise they run past the card and off the window.
+        var card = window.GetVisualDescendants().OfType<Border>().First(b => Math.Abs(b.Width - 292) < 1);
+        var cardRight = card.TranslatePoint(new Point(card.Bounds.Width, 0), window)!.Value.X;
+        var options = window.GetVisualDescendants().OfType<Button>()
+            .Where(b => b.Content is string text && (text.Contains("Bank") || text == "Edit" || text == "Showdown QR"))
+            .ToList();
+        Assert.Equal(4, options.Count);
+        foreach (var option in options)
+        {
+            var topLeft = option.TranslatePoint(new Point(0, 0), window)!.Value;
+            Assert.True(topLeft.X + option.Bounds.Width <= cardRight,
+                $"'{option.Content}' ends at {topLeft.X + option.Bounds.Width}, past the card ({cardRight})");
+            Assert.True(topLeft.X + option.Bounds.Width <= window.ClientSize.Width,
+                $"'{option.Content}' ends at {topLeft.X + option.Bounds.Width}, past the window ({window.ClientSize.Width})");
+            Assert.True(topLeft.Y + option.Bounds.Height <= window.ClientSize.Height,
+                $"'{option.Content}' ends at {topLeft.Y + option.Bounds.Height}, past the window ({window.ClientSize.Height})");
+        }
+        window.Close();
+    });
 }
 
 
