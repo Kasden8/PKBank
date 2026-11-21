@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PKBank.App.Services;
 using PKForge.Domain;
 using PKForge.Engine;
 using PKForge.Infrastructure;
@@ -16,6 +17,7 @@ public partial class SaveEditorViewModel : ObservableObject
     private readonly ISafeSaveWriter _writer;
     private readonly IBankService _bank;
     private readonly SaveEngine _engine;
+    private readonly SaveRegistry _registry;
 
     [ObservableProperty] private string? _filePath;
     [ObservableProperty] private string _fileName = "";
@@ -27,12 +29,13 @@ public partial class SaveEditorViewModel : ObservableObject
     private SaveSnapshot? _snapshot;
     private byte[] _originalBytes = [];
 
-    public SaveEditorViewModel(IBackupService backups, ISafeSaveWriter writer, IBankService bank, SaveEngine engine)
+    public SaveEditorViewModel(IBackupService backups, ISafeSaveWriter writer, IBankService bank, SaveEngine engine, SaveRegistry? registry = null)
     {
         _backups = backups;
         _writer = writer;
         _bank = bank;
         _engine = engine;
+        _registry = registry ?? SaveRegistry.Default;
     }
 
     public bool HasSave => Save is not null;
@@ -64,6 +67,10 @@ public partial class SaveEditorViewModel : ObservableObject
         Save = save;
         _originalBytes = bytes;
         _snapshot = BuildSnapshot(save, bytes, FileName);
+        // Remember where this save lives so the SAVES screen can offer it again
+        // without a file dialog. A registry hiccup must never block opening.
+        try { _registry.Register(path, save); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
         await _backups.CreateAsync(_snapshot, "Opened save", path, cancellationToken).ConfigureAwait(false);
         BoxIndex = Math.Min(BoxIndex, Math.Max(0, save.BoxCount - 1));
         Dirty = false;

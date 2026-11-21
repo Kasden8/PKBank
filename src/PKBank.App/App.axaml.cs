@@ -95,6 +95,7 @@ public sealed class App : Application
         });
         services.AddSingleton(_ => new InjectedGiftHistory(Path.Combine(dataDir, "injected-gifts.json")));
         services.AddSingleton<ISaveIdentityStore>(_ => new JsonSaveIdentityStore(Path.Combine(dataDir, "save-identities.json")));
+        services.AddSingleton(_ => SaveRegistry.Default);
         services.AddSingleton<ISaveFileAccess, LocalFileAccess>();
         services.AddSingleton<ISafeSaveWriter, SafeSaveWriter>();
         services.AddSingleton<ILegalityService, LegalityService>();

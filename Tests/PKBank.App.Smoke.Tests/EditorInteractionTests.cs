@@ -33,11 +33,13 @@ public sealed class EditorInteractionTests : IDisposable
     private readonly SafeSaveWriter _writer;
     private readonly SaveEngine _engine = new();
     private readonly SpriteService _sprites = new();
+    private string? _registryRaw;
+    private readonly SaveRegistry _registry;
 
     public EditorInteractionTests()
     {
         EnsurePlatform();
-        Directory.CreateDirectory(_root);
+        _registry = new SaveRegistry(() => _registryRaw, raw => _registryRaw = raw);        Directory.CreateDirectory(_root);
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "PKBank.slnx")))
             directory = directory.Parent;
@@ -67,7 +69,7 @@ public sealed class EditorInteractionTests : IDisposable
 
     private SaveEditorViewModel OpenEditor()
     {
-        var vm = new SaveEditorViewModel(_backups, _writer, _bank, _engine);
+        var vm = new SaveEditorViewModel(_backups, _writer, _bank, _engine, _registry);
         Assert.Null(vm.LoadAsync(_savePath).GetAwaiter().GetResult());
         return vm;
     }
@@ -165,6 +167,36 @@ public sealed class EditorInteractionTests : IDisposable
         var vm = OpenEditor();
         var error = Record.Exception(() => _ = new TrainerEditorView(vm));
         Assert.Null(error);
+    }
+
+    [Fact]
+    public void OpeningASaveRemembersItsLocation()
+    {
+        var vm = OpenEditor();
+        // The whole point of the registry: the next visit needs no file dialog.
+        var entry = Assert.Single(_registry.GetAll());
+        Assert.Equal(Path.GetFullPath(_savePath), entry.Path);
+        Assert.Equal(vm.Save!.OT, entry.TrainerName);
+        Assert.Equal(vm.Save.BoxCount, entry.BoxCount);
+        Assert.True(entry.Exists);
+    }
+
+    [Fact]
+    public void TheBoxBrowserDrawsEveryBox()
+    {
+        var vm = OpenEditor();
+        var browser = new BoxBrowserView(vm, _sprites);
+        Assert.Equal(vm.Save!.BoxCount, browser.TileCount);
+    }
+
+    [Fact]
+    public void ChoosingABoxOpensTheEditorThere()
+    {
+        var vm = OpenEditor();
+        var browser = new BoxBrowserView(vm, _sprites);
+        var error = Record.Exception(() => _ = browser.BuildEditorFor(2));
+        Assert.Null(error);
+        Assert.Equal(2, vm.BoxIndex);
     }
 }
 

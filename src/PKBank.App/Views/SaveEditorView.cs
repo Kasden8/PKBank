@@ -82,12 +82,18 @@ public sealed class SaveEditorView : UserControl
         var trainerButton = new Button { Content = "Trainer" };
         StyleButton(trainerButton);
         trainerButton.Click += (_, _) => Navigator().Show(new TrainerEditorView(_vm));
+        var boxesButton = new Button { Content = "All boxes" };
+        StyleButton(boxesButton);
+        boxesButton.Click += (_, _) => Navigator().Show(new BoxBrowserView(_vm, _sprites));
+        var savesButton = new Button { Content = "Saves" };
+        StyleButton(savesButton);
+        savesButton.Click += (_, _) => Navigator().Show(new SavesView(_vm, _sprites));
 
         var top = new StackPanel
         {
             Orientation = Orientation.Vertical,
             Spacing = 8,
-            Children = { TopRow(openButton, bagButton, trainerButton) },
+            Children = { TopRow(openButton, bagButton, trainerButton, boxesButton, savesButton) },
         };
 
         var left = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Top };
@@ -133,13 +139,15 @@ public sealed class SaveEditorView : UserControl
         RefreshAll();
     }
 
-    private Control TopRow(Button openButton, Button bagButton, Button trainerButton)
+    private Control TopRow(Button openButton, Button bagButton, Button trainerButton, Button boxesButton, Button savesButton)
     {
         var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         right.Children.Add(_saveButton);
         right.Children.Add(openButton);
+        right.Children.Add(boxesButton);
         right.Children.Add(bagButton);
         right.Children.Add(trainerButton);
+        right.Children.Add(savesButton);
         var grid = new Grid
         {
             ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)],
@@ -386,6 +394,11 @@ public sealed class SaveEditorView : UserControl
 
     private async Task PickAndLoadAsync()
     {
+        if (_vm.Dirty)
+        {
+            _statusLabel.Text = "You have unsaved changes — save them before switching saves.";
+            return;
+        }
         var top = TopLevel.GetTopLevel(this);
         if (top is null) return;
         var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
