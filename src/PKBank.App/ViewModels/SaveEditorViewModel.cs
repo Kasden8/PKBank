@@ -165,6 +165,14 @@ public partial class SaveEditorViewModel : ObservableObject
         {
             return (false, $"The write was refused for safety: {ex.Message} The original was not touched.");
         }
+        catch (IOException ex)
+        {
+            return (false, $"The save file could not be written: {ex.Message} Another program is using it - close the emulator (or the game) and save again. Nothing was written.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return (false, $"The save file could not be written: {ex.Message} Close the program that has it open and save again. Nothing was written.");
+        }
         _originalBytes = candidate;
         _snapshot = BuildSnapshot(Save, candidate, FileName);
         Dirty = false;

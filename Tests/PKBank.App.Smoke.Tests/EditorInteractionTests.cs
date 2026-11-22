@@ -246,6 +246,24 @@ public sealed class EditorInteractionTests : IDisposable
         }
         window.Close();
     });
+
+    /// <summary>An emulator keeps the save file open: saving must report it instead of
+    /// throwing an unhandled IOException (the player would think nothing happened).</summary>
+    [Fact]
+    public void SavingOverALockedFileExplainsItself() => HeadlessTestPlatform.Run(() =>
+    {
+        var vm = OpenEditor();
+        vm.Save!.SetBoxSlotAtIndex(vm.Save.BlankPKM, 0, 0, EntityImportSettings.None);
+        vm.Dirty = true;
+
+        using var lockStream = new FileStream(_savePath, FileMode.Open, FileAccess.Read, FileShare.None);
+        var (ok, message) = vm.SaveAsync().GetAwaiter().GetResult();
+
+        Assert.False(ok, "the write cannot succeed while another program holds the file");
+        Assert.Contains("could not be written", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("close", message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(vm.Dirty, "the pending change stays pending after a refused write");
+    });
 }
 
 
