@@ -24,7 +24,7 @@ public sealed class EventsView : UserControl
     private readonly TextBlock _status = new() { FontSize = 12.5, Foreground = Avalonia.Media.Brushes.Gray };
     private readonly TextBox _search = new() { MinWidth = 240, PlaceholderText = "Search gift title / species…" };
     private readonly StackPanel _list = new() { Spacing = 6 };
-    private readonly Grid _host = new();
+    private readonly StackPanel _notice = new() { Spacing = 6 };
     private IReadOnlyList<EventGift> _all = [];
     private SaveFile? _albumSource;
 
@@ -41,11 +41,11 @@ public sealed class EventsView : UserControl
 
         var root = new StackPanel { Spacing = 12, Margin = new Thickness(26, 22) };
         root.Children.Add(PkChrome.PixelLabel("EVENTS — Mystery Gift database", 20, UiTokens.Bright));
+        root.Children.Add(_notice);
         root.Children.Add(_search);
         root.Children.Add(new ScrollViewer { Content = _list });
         root.Children.Add(_status);
-        _host.Children.Add(root);
-        Content = _host;
+        Content = root;
         Render();
     }
 
@@ -177,12 +177,15 @@ public sealed class EventsView : UserControl
     }
 
     /// <summary>An injected gift only exists in memory until the save is written, and the
-    /// write fails while an emulator holds the file open. Ask right away instead of
-    /// leaving the player wondering why nothing happened.</summary>
+    /// write fails while an emulator holds the file open. A banner at the top of this
+    /// screen says so and offers the write, instead of leaving the player wondering
+    /// why nothing happened.</summary>
     private void ShowSavePrompt(string message)
     {
-        var panel = new StackPanel { Spacing = 10, Width = 520, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        panel.Children.Add(PkChrome.PixelLabel("WONDER CARD INJECTED", 16, UiTokens.Bright));
+        _notice.Children.Clear();
+
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Children.Add(PkChrome.PixelLabel("WONDER CARD INJECTED — SAVE PENDING", 15, UiTokens.Bright));
         panel.Children.Add(PkChrome.BodyLabel(message, 12.5, UiTokens.Ink0, wrap: true));
         panel.Children.Add(PkChrome.BodyLabel(
             "The save file has NOT been written yet. If your emulator is running, close it first: it keeps the save open and would overwrite this change when it closes.",
@@ -190,41 +193,35 @@ public sealed class EventsView : UserControl
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         var save = new Button { Content = "Save now" };
-        var later = new Button { Content = "Save later" };
+        var dismiss = new Button { Content = "Save later" };
         SaveEditorView.StyleButton(save);
-        SaveEditorView.StyleButton(later);
+        SaveEditorView.StyleButton(dismiss);
         save.Background = PkChrome.Brush(UiTokens.MenuBlue);
 
-        var dialog = new Border
-        {
-            Background = PkChrome.PanelGradient(),
-            BorderBrush = PkChrome.Brush(UiTokens.Rim),
-            BorderThickness = new Thickness(1.2),
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(20, 16),
-            Child = panel,
-        };
-        var scrim = new Border
-        {
-            Background = PkChrome.Brush(UiTokens.Scrim),
-            Child = dialog,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-        };
         save.Click += async (_, _) =>
         {
-            _host.Children.Remove(scrim);
+            save.IsEnabled = false;
             _status.Text = await SaveNowAsync();
+            _notice.Children.Clear();
         };
-        later.Click += (_, _) =>
+        dismiss.Click += (_, _) =>
         {
-            _host.Children.Remove(scrim);
+            _notice.Children.Clear();
             _status.Text = "Card injected in memory only. Press Save in the editor to write it to disk.";
         };
         buttons.Children.Add(save);
-        buttons.Children.Add(later);
+        buttons.Children.Add(dismiss);
         panel.Children.Add(buttons);
-        _host.Children.Add(scrim);
+
+        _notice.Children.Add(new Border
+        {
+            Background = PkChrome.PanelGradient(),
+            BorderBrush = PkChrome.Brush(UiTokens.Warn),
+            BorderThickness = new Thickness(1.2),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(16, 12),
+            Child = panel,
+        });
     }
 
     private async ValueTask<string> SaveNowAsync()
