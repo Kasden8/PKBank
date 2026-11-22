@@ -239,6 +239,49 @@ public sealed class EventDatabaseService : IEventDatabaseService
         }
     }
 
+    public bool StoresWonderCards(ISaveEngineSession session) =>
+        session is SaveEngineSession engineSession && engineSession.SaveFile is IMysteryGiftStorageProvider;
+
+    public GenerationOutcome ReceiveCard(ISaveEngineSession session, int giftId)
+    {
+        if (session is not SaveEngineSession engineSession)
+            return new GenerationOutcome(false, "Unsupported session type.");
+        var save = engineSession.SaveFile;
+        if (save is not IMysteryGiftStorageProvider provider)
+            return new GenerationOutcome(false, "This game cannot hold wonder cards.");
+        var gifts = GetRawGifts(save);
+        if (giftId < 0 || giftId >= gifts.Count)
+            return new GenerationOutcome(false, "Unknown gift.");
+
+        var storage = provider.MysteryGiftStorage;
+        var index = Enumerable.Range(0, storage.GiftCountMax).FirstOrDefault(i => storage.GetMysteryGift(i).IsEmpty, -1);
+        if (index < 0)
+            return new GenerationOutcome(false, "The save's wonder card album is full; receive or delete a card in the game first.");
+
+        if (gifts[giftId] is not DataMysteryGift data)
+            return new GenerationOutcome(false, "This card cannot be stored in the album.");
+        var card = data.Clone();
+        card.GiftUsed = false; // a used card would be skipped by the delivery man
+
+        try
+        {
+            storage.SetMysteryGift(index, card);
+        }
+        catch (Exception e) when (e is InvalidCastException or ArgumentException)
+        {
+            return new GenerationOutcome(false, "This game's album cannot hold that card format.");
+        }
+
+        // The game skips cards whose distribution id was already marked received.
+        if (storage is IMysteryGiftFlags flags && (uint)card.CardID < (uint)flags.MysteryGiftReceivedFlagMax)
+            flags.SetMysteryGiftReceivedFlag(card.CardID, false);
+        if (storage is MysteryBlock4 gen4)
+            gen4.IsDeliveryManActive = true; // the delivery man only appears while this flag is set
+
+        return new GenerationOutcome(true,
+            "Wonder card delivered to the album. Save, then in the game ask the delivery man in any Pokémon Center to receive it!");
+    }
+
     public GenerationOutcome Receive(ISaveEngineSession session, int giftId, int box, int slot)
     {
         if (session is not SaveEngineSession engineSession)

@@ -518,6 +518,14 @@ public interface IEventDatabaseService
     GenerationOutcome Receive(ISaveEngineSession session, int giftId, int box, int slot);
     /// <summary>Delivers an item card's items into the open save's bag.</summary>
     GenerationOutcome ReceiveItems(ISaveEngineSession session, int giftId);
+    /// <summary>Whether the open save can hold wonder cards in its in-game gift album
+    /// (the game's delivery man then hands them out at any Pokémon Center).</summary>
+    bool StoresWonderCards(ISaveEngineSession session);
+    /// <summary>Delivers the card itself into the save's gift album (first free slot,
+    /// fresh and with the received flag cleared), exactly like the game received the
+    /// distribution: the in-game delivery man gives the gift. Only for saves where
+    /// StoresWonderCards holds; the rest write the gift directly (Receive/ReceiveItems).</summary>
+    GenerationOutcome ReceiveCard(ISaveEngineSession session, int giftId);
     /// <summary>The card itself as a gift file (.pcd/.pgf/.wc6...), or null when unknown.</summary>
     SlotExport? ExportCard(ISaveEngineSession session, int giftId);
     /// <summary>The Pokémon the card delivers, converted for the open save's trainer, as

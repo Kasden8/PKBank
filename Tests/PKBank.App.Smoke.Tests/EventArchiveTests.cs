@@ -62,4 +62,34 @@ public sealed class EventArchiveTests
         Assert.True(EncounterEvent.EGDB_G9.Length > 0);
         Assert.Equal(gen7Cards, EncounterEvent.EGDB_G7.Length);
     });
+
+    /// <summary>Injecting a card must mirror a real distribution: the wonder card lands in
+    /// the save's gift album (fresh, not marked received) so the game's own delivery man
+    /// hands the gift over, instead of the mon appearing in a box slot.</summary>
+    [Fact]
+    public void InjectedCardWaitsInTheAlbumForTheDeliveryMan() => HeadlessTestPlatform.Run(() =>
+    {
+        using var session = new SaveEngineSession(FixtureGen7());
+        Assert.True(Events.StoresWonderCards(session), "Gen 7 saves hold wonder cards");
+
+        var pokemonCard = Events.GetGifts(session).First(g => g.Kind == EventGiftKind.Pokemon);
+        var emptyBefore = session.GetMysteryGiftInbox().Cards.Count;
+
+        var outcome = Events.ReceiveCard(session, pokemonCard.Id);
+
+        Assert.True(outcome.Success, outcome.Message);
+        var inbox = session.GetMysteryGiftInbox();
+        var stored = Assert.Single(inbox.Cards, c => c.CardId == pokemonCard.CardId);
+        Assert.False(stored.GiftUsed, "a used card would be skipped by the delivery man");
+        Assert.False(stored.IsReceivedRecord, "the delivery man skips cards already received");
+        Assert.Equal(emptyBefore + 1, inbox.Cards.Count);
+    });
+
+    [Fact]
+    public void AlbumlessGamesReportIt() => HeadlessTestPlatform.Run(() =>
+    {
+        var engine = new SaveEngine();
+        using var session = engine.OpenBlankSession(9);
+        Assert.False(Events.StoresWonderCards(session), "Gen 9 saves have no wonder card album");
+    });
 }

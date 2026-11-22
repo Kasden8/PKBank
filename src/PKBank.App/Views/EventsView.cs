@@ -141,12 +141,47 @@ public sealed class EventsView : UserControl
 
         var bytes = _saveEditorVm.Save.Write(BinaryExportSetting.None).ToArray();
         using var session = new SaveEngineSession(bytes);
-        var firstFreeBox = _saveEditorVm.BoxIndex;
-        var firstFreeSlot = Enumerable.Range(0, 30).FirstOrDefault(s => _saveEditorVm.Slot(firstFreeBox, s).Species == 0, -1);
-        var outcome = _events.Receive(session, gift.Id, firstFreeBox, firstFreeSlot);
+
+        // Games with a wonder card album (Gen 4-7): the card goes into the album and the
+        // game's own delivery man hands the gift over, exactly like a real distribution.
+        if (_events.StoresWonderCards(session))
+        {
+            var card = _events.ReceiveCard(session, gift.Id);
+            if (!card.Success) return ValueTask.FromResult(card.Message);
+            var rewritten = session.Serialize().ToArray();
+            _saveEditorVm.ReplaceLoadedBytes(rewritten, "Wonder card in the album — Save to persist, then receive it in the game.");
+            return ValueTask.FromResult(card.Message);
+        }
+
+        // No album (Gen 3, Gen 8+, hackfors): the gift is written directly.
+        if (gift.Kind == EventGiftKind.Item)
+        {
+            var items = _events.ReceiveItems(session, gift.Id);
+            if (!items.Success) return ValueTask.FromResult(items.Message);
+            var rewritten = session.Serialize().ToArray();
+            _saveEditorVm.ReplaceLoadedBytes(rewritten, "Items delivered — Save to persist.");
+            return ValueTask.FromResult(items.Message);
+        }
+
+        var (box, slot) = FirstFreeSlot();
+        var outcome = _events.Receive(session, gift.Id, box, slot);
         if (!outcome.Success) return ValueTask.FromResult(outcome.Message);
-        var rewritten = session.Serialize().ToArray();
-        _saveEditorVm.ReplaceLoadedBytes(rewritten, $"Gift {gift.Id} received — Save to persist.");
+        var data = session.Serialize().ToArray();
+        _saveEditorVm.ReplaceLoadedBytes(data, $"Gift {gift.Id} received — Save to persist.");
         return ValueTask.FromResult(outcome.Message);
+    }
+
+    /// <summary>The current box first, then the rest; (box, 0) when everything is full —
+    /// the engine rejects the write and the user sees the message.</summary>
+    private (int Box, int Slot) FirstFreeSlot()
+    {
+        var total = Math.Max(1, _saveEditorVm!.BoxTotal);
+        for (var offset = 0; offset < total; offset++)
+        {
+            var box = (_saveEditorVm.BoxIndex + offset) % total;
+            var slot = Enumerable.Range(0, 30).FirstOrDefault(s => _saveEditorVm.Slot(box, s).Species == 0, -1);
+            if (slot >= 0) return (box, slot);
+        }
+        return (_saveEditorVm.BoxIndex, 0);
     }
 }
