@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PKBank.App.Services;
 using PKBank.App.ViewModels;
@@ -263,6 +265,41 @@ public sealed class EditorInteractionTests : IDisposable
         Assert.Contains("could not be written", message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("close", message, StringComparison.OrdinalIgnoreCase);
         Assert.True(vm.Dirty, "the pending change stays pending after a refused write");
+    });
+
+    /// <summary>Injecting a gift must leave a visible "save pending" banner with the write
+    /// button on the same screen. An overlay stretched over the whole (very tall) event
+    /// list hid the dialog outside the viewport and left the player with a blank scrim.</summary>
+    [Fact]
+    public void InjectingShowsASaveBannerOnTheSameScreen() => HeadlessTestPlatform.Run(() =>
+    {
+        var vm = OpenEditor();
+        var bankVm = new BankViewModel(_bank, _engine) { CurrentSaveProvider = () => vm };
+        var view = new EventsView(vm, bankVm, new EventDatabaseService(), _sprites);
+        var window = new Window { Width = 1229, Height = 768, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var injects = view.GetVisualDescendants().OfType<Button>()
+            .Where(b => b.Content is string text && text.Contains("Inject", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.NotEmpty(injects);
+
+        Button? saveNow = null;
+        foreach (var inject in injects)
+        {
+            inject.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            saveNow = view.GetVisualDescendants().OfType<Button>()
+                .FirstOrDefault(b => b.Content is string text && text.Contains("Save now", StringComparison.OrdinalIgnoreCase));
+            if (saveNow is not null) break;
+        }
+        Assert.True(saveNow is not null, "injecting a receivable card must leave the save-pending banner on screen");
+        var banner = saveNow!.GetVisualAncestors().OfType<Border>().FirstOrDefault();
+        Assert.NotNull(banner);
+        Assert.True(banner!.Bounds.Height < 400, $"the banner must stay a small panel, not cover the screen ({banner.Bounds.Height}px)");
+
+        window.Close();
     });
 }
 
